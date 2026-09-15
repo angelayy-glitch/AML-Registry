@@ -1696,7 +1696,18 @@ async function loadSharedFiles() {
   const file = new File([blob], item.file);
 
   const rows = await readFile(file);
-  ingest(item.id, rows, item.file);
+const parsed = ingest(rows);
+const nameBase = baseFromFileName(item.file);
+
+state.data[item.id] = {
+  fileName: item.file,
+  baseDate: nameBase || parsed.baseGuess || guessBaseDate(file),
+  loadedAt: new Date().toLocaleString('ko-KR'),
+  rows: parsed.rows,
+  headers: parsed.headers,
+  colmap: parsed.colmap,
+  flags: parsed.flags
+};
 
   console.log('공용파일 로드 완료:', item.file);
 } catch (err) {
