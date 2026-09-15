@@ -1664,8 +1664,51 @@ function resultText() {
 /* ============================================================
    9. 초기화
    ============================================================ */
+async function loadSharedFiles() {
+  const sharedFiles = [
+    {
+      id: 'exchange',
+      file: '환전영업자현황 목록_2026년 08월_홈페이지.xlsx'
+    },
+    {
+      id: 'efinance',
+      file: '전자금융업 등록 및 말소 현황_20260826_게시용.xlsx'
+    },
+    {
+      id: 'vasp',
+      file: '가상자산사업자 신고에 관한 정보공개현황(2026.8.31. 기준).csv'
+    }
+  ];
+
+  for (const item of sharedFiles) {
+    try {
+      const response = await fetch(
+        './' + encodeURIComponent(item.file),
+        { cache: 'no-store' }
+      );
+
+  if (!response.ok) {
+    console.warn('공용파일을 불러오지 못했습니다:', item.file);
+    continue;
+  }
+
+  const blob = await response.blob();
+  const file = new File([blob], item.file);
+
+  const rows = await readFile(file);
+  ingest(item.id, rows, item.file);
+
+  console.log('공용파일 로드 완료:', item.file);
+} catch (err) {
+  console.error('공용파일 로드 오류:', item.file, err);
+}
+  }
+
+  renderSources();
+}
 load();
 renderSources();
+loadSharedFiles();
 if (!SOURCES.some(s => s.file && state.data[s.id])) {
   document.getElementById('srcPanel').open = true;
 }
