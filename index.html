@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>업종 등록현황 통합조회 (KYC)</title>
+
+<!--
+  ─────────────────────────────────────────────────────────────
+  업종 등록현황 통합조회 도구
+  ─────────────────────────────────────────────────────────────
+  · 상호명 / 사업자등록번호로 5개 업종 등록현황을 일괄 대조합니다.
+  · 모든 처리는 브라우저 안에서만 수행되며 외부로 데이터를 전송하지 않습니다.
+  · 등록한 목록 파일·조회 이력은 접속한 사람의 브라우저에만 저장되므로,
+    사내 주소로 공유해 쓰더라도 담당자별로 자료를 한 번씩 등록해야 합니다.
+  · 자료 형식·갱신주기가 업종별로 달라, 파일형(대조)과 웹형(직접조회)으로 나누어 처리합니다.
+
+  [ 최초 설정 ]
+  아래 SOURCES 의 url 값은 확인 후 실제 주소로 수정하십시오.
+  화면의 "조회 사이트 주소" 입력란에서 수정해도 브라우저에 저장됩니다.
+-->
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+        onerror="window.__xlsxFailed = true"></script>
+
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --panel: #ffffff;
+    --line: #dfe3ec;
+    --line-strong: #c3c9d8;
+    --text: #1c2130;
+    --muted: #6b7488;
+    --accent: #2f5bd8;
+    --accent-soft: #eaefff;
+    --hit: #c0392b;
+    --hit-soft: #fdecea;
+    --warn: #9a6700;
+    --warn-soft: #fff8e1;
+    --ok: #1d7a4c;
+    --ok-soft: #e8f6ee;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  header.page h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.4px; }
+  header.page p  { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .panel > h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel > h2 .hint { font-weight: 400; font-size: 12px; color: var(--muted); }
+
+  /* ── 조회 입력 ── */
+  .query { display: grid; grid-template-columns: 1fr 200px auto; gap: 10px; align-items: end; }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+
+  input[type="text"], input[type="month"], input[type="url"], textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    font: inherit;
+    background: #fff;
+    color: var(--text);
+  }
+
+  textarea {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    resize: vertical;
+  }
+
+  input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    color: var(--text);
+    padding: 9px 14px;
+  }
+
+  button:hover { border-color: var(--accent); color: var(--accent); }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    padding: 10px 22px;
+  }
+
+  button.primary:hover { background: #244bbd; color: #fff; }
+
+  button.small { padding: 5px 10px; font-size: 12px; }
+
+  /* ── 자료 등록 ── */
+  details.sources summary {
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .src {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    background: #fbfcfe;
+  }
+
+  .src-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .src-head .nm { font-weight: 700; }
+
+  .tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    background: #fff;
+  }
+
+  .tag.risk { border-color: #e3b0aa; color: var(--hit); background: var(--hit-soft); }
+
+  .src-grid { display: grid; grid-template-columns: 1fr 150px; gap: 10px; align-items: end; }
+
+  .src .status { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .src .status.loaded { color: var(--ok); }
+  .src .status.err { color: var(--hit); }
+
+  .colmap { font-size: 11px; color: var(--muted); margin-top: 4px; word-break: break-all; }
+
+  /* ── 결과 ── */
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-weight: 700;
+  }
+
+  .verdict.hit  { background: var(--hit-soft);  color: var(--hit);  border: 1px solid #eebfba; }
+  .verdict.warn { background: var(--warn-soft); color: var(--warn); border: 1px solid #ecdca6; }
+  .verdict.none { background: var(--ok-soft);   color: var(--ok);   border: 1px solid #b9e0c9; }
+
+  table.res { width: 100%; border-collapse: collapse; margin-top: 6px; }
+
+  table.res th, table.res td {
+    border: 1px solid var(--line);
+    padding: 7px 9px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+  }
+
+  table.res th { background: #f7f9fc; color: var(--muted); font-weight: 600; white-space: nowrap; }
+
+  /* 여러 건이 걸릴 때 담당자가 고른 확정 1건 */
+  table.res th.pick, table.res td.pick { width: 44px; text-align: center; white-space: nowrap; }
+  table.res tr.picked td { background: var(--accent-soft); }
+  table.res tr.picked td.pick { box-shadow: inset 3px 0 0 var(--accent); }
+  .pickhint { font-size: 12px; font-weight: 600; color: var(--warn); margin-top: 6px; }
+
+  .rescard { border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .rescard.hit  { border-left: 4px solid var(--hit); }
+  .rescard.cancelled { border-left: 4px solid var(--hit); }
+  .rescard.warn { border-left: 4px solid var(--warn); }
+  .rescard.none { border-left: 4px solid var(--ok); }
+  .rescard.web  { border-left: 4px solid var(--accent); }
+
+  .rescard-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .rescard-head .nm { font-weight: 700; font-size: 14px; }
+  .rescard .meta { font-size: 12px; color: var(--muted); }
+
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .badge.hit  { background: var(--hit-soft);  color: var(--hit); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.none { background: var(--ok-soft);   color: var(--ok); }
+  .badge.web  { background: var(--accent-soft); color: var(--accent); }
+
+  .tier { font-size: 11px; color: var(--muted); }
+
+  ul.checklist { margin: 8px 0 0; padding-left: 0; list-style: none; }
+  ul.checklist li { padding: 4px 0; font-size: 13px; }
+  ul.checklist input { margin-right: 7px; }
+
+  .note {
+    background: var(--warn-soft);
+    border: 1px solid #ecdca6;
+    color: #6b4e00;
+    border-radius: 7px;
+    padding: 9px 12px;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  .empty { color: var(--muted); font-size: 13px; }
+
+  .foot { color: var(--muted); font-size: 12px; margin-top: 22px; }
+
+  @media print {
+    body { background: #fff; }
+    .noprint { display: none !important; }
+    .panel { border: none; padding: 0; }
+    .wrap { max-width: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>업종 등록현황 통합조회</h1>
+  <p>상호명·사업자등록번호로 환전영업자 / 소액해외송금업자 / 대부업자 / 가상자산취급업 / 전자금융업자
+     등록현황을 일괄 대조합니다.
+     환전영업자·가상자산취급업·전자금융업자는 월 1회 게시되는 <b>목록 파일</b>로 자동 대조하고,
+     소액해외송금업자는 목록 파일이 없어 <b>실시간 사이트 조회</b> 후 결과를 기록합니다.
+     대부업자는 전체 목록을 내려받아 등록해 두면 파일 대조로 확인되고, 필요할 때 사이트에서 재확인합니다.<br>
+     모든 대조는 브라우저 내에서만 수행되며 입력값과 자료는 외부로 전송되지 않습니다.
+     <b>등록한 목록 파일과 조회 이력은 본인 브라우저에만 저장됩니다</b> — 처음 사용하시면
+     아래 <b>자료 등록</b>에서 업종별 최신 목록을 한 번 등록해 주십시오.</p>
+</header>
+
+<!-- ── 조회 ── -->
+<section class="panel noprint">
+  <h2>고객 조회</h2>
+  <div class="query">
+    <div class="field">
+      <label for="qName">상호명 (법인명)</label>
+      <input type="text" id="qName" placeholder="예: 주식회사 ○○페이" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="qBrn">사업자등록번호</label>
+      <input type="text" id="qBrn" placeholder="000-00-00000" autocomplete="off">
+    </div>
+    <button class="primary" id="btnSearch">조회</button>
+  </div>
+  <div class="colmap">상호명·사업자등록번호 중 하나만 입력해도 조회됩니다. 사업자등록번호가 일치하면 가장 높은 신뢰도로 판정합니다.</div>
+</section>
+
+<!-- ── 자료 등록 ── -->
+<section class="panel noprint">
+  <details class="sources" id="srcPanel">
+    <summary>업종별 자료 등록 <span class="hint" id="srcSummary"></span></summary>
+    <div class="colmap" style="margin-top:8px">
+      파일형 자료는 <b>CSV 또는 XLSX</b>를 올리면 헤더를 자동 인식해 대조합니다.
+      <b>DRM이 적용된 파일은 브라우저가 읽을 수 없으므로</b>, Excel에서 열어 CSV로 저장하거나
+      <b>붙여넣기로 등록</b>(Excel 전체 선택 → 복사 → 붙여넣기)을 사용하십시오.
+      등록한 자료는 이 브라우저에만 저장되며 <b>자료 전체 삭제</b>로 지울 수 있습니다.
+    </div>
+    <div id="srcList"></div>
+    <div class="actions">
+      <button class="small" id="btnClear">자료 전체 삭제</button>
+    </div>
+  </details>
+</section>
+
+<!-- ── 결과 ── -->
+<section class="panel" id="resultPanel" style="display:none">
+  <h2>조회 결과</h2>
+  <div id="resultBody"></div>
+  <div class="actions noprint">
+    <button id="btnCopy">결과 텍스트 복사</button>
+    <button id="btnPrint">인쇄 / PDF 저장</button>
+  </div>
+</section>
+
+<p class="foot noprint">
+  조회 결과는 KYC profile 첨부용 근거자료로 사용하기 위해 조회일시·자료기준일자·출처를 함께 기록합니다.
+  자료 기준일자가 오래된 경우 갱신 후 재조회하십시오.
+</p>
+
+</div>
+
+<script>
+/* ============================================================
+   1. 업종별 자료 정의
+   ------------------------------------------------------------
+   file     : 목록 파일을 등록해 자동 대조하는 자료
+   web      : 사이트에서 실시간 조회하는 자료 (file 과 동시에 true 가능)
+   webTable : 사이트 결과가 HTML 표여서 복사·붙여넣기로 자동 대조가 되는지 여부.
+              false 면 카드·목록 형태라 파싱이 불가하므로 원문을 증빙으로 저장만 한다.
+   risk     : true = 특금법상 당연 고위험 업종
+   docs     : 적용 대상일 때 추가로 징구·확인해야 하는 증빙
+   url      : 조회 사이트 주소 (화면에서 수정 가능, 브라우저에 저장됨)
+   steps    : 사이트 조회 절차 안내
+   baseFromName : 자료 기준연월을 파일명의 연월에서 먼저 잡는다.
+              (시트 안에 기준일자 문구가 없거나 게시월과 다르게 적히는 자료용)
+
+   전자금융업은 등록 여부만 판정하며 말소 현황은 대조 대상에 포함하지 않는다.
+   유효기간은 어느 자료에서도 판정 근거로 쓰지 않고 기록·표시만 한다.
+   ============================================================ */
+const SOURCES = [
+  {
+    id: 'exchange',
+    name: '환전영업자 (관세청)',
+    cycle: '매월 1회',
+    file: true,
+    web: false,
+    risk: true,
+    url: 'https://www.customs.go.kr',
+    note: '자료에 사업자등록번호가 없어 상호명으로만 대조합니다(주소로 보조 확인).'
+  },
+  {
+    id: 'remittance',
+    name: '소액해외송금업자 (FINE)',
+    cycle: '실시간 (사이트 조회)',
+    file: false,
+    web: true,
+    webTable: false,        // 결과가 표가 아니라 카드 목록(li) 형태여서 자동 대조 불가
+    risk: true,
+    url: 'https://fine.fss.or.kr/fine/fncco/smlamtLnd/list.do?menuNo=900041',
+    steps: [
+      '"조회 사이트 열기"를 누르면 상호명이 클립보드에 복사됩니다.',
+      '페이지의 [상호] 입력란에 붙여넣고(Ctrl+V) 검색합니다. 등록구분은 "전체"로 두십시오.',
+      '검색 결과가 나오면 해당 업체 항목을 복사해 아래 "조회 결과 원문"에 붙여넣고 판정을 선택하십시오.',
+      '결과가 없으면 "미해당"을 선택하십시오.'
+    ],
+    note: '전체 등록업체가 33건 수준으로 적고, 조회 결과가 표가 아니라 항목별 카드 목록으로 표시됩니다. '
+        + '자동 대조가 불가능하므로 사이트에서 상호로 검색해 결과 유무를 확인하고 판정을 기록하십시오. '
+        + '붙여넣은 원문은 파싱하지 않고 증빙으로 그대로 보관합니다.'
+  },
+  {
+    id: 'moneylend',
+    name: '대부업자 (FINE 등록대부업체 통합조회)',
+    cycle: '전체목록 내려받기 + 실시간 재확인',
+    file: true,
+    web: true,
+    webTable: true,         // 결과가 HTML 표여서 복사·붙여넣기로 자동 대조 가능
+    risk: true,
+    url: 'http://fines.fss.or.kr/fines/plis/moneyLenderSearch/MoneyLenderSearch.getMoneyLenderList.do',
+    steps: [
+      '"조회 사이트 열기"를 누르면 상호명이 클립보드에 복사됩니다.',
+      '[등록기관]을 "전체"로 두어야 금융감독원 등록분과 지방자치단체 등록분이 함께 조회됩니다.',
+      '상세검색의 [업체명]에 붙여넣고 검색합니다. 법인은 [법인등록번호]로도 조회할 수 있습니다.',
+      '결과 표를 헤더 행까지 포함해 복사한 뒤 아래에 붙여넣으면 자동 대조합니다.',
+      '[운영상태]가 정상 영업인지 확인하십시오 (폐업 · 등록취소 여부).'
+    ],
+    note: '조회 화면 우측 상단의 [다운로드] 버튼으로 전체 목록(약 8,900건)을 내려받아 위 "목록 파일"로 등록해 두면 '
+        + 'KYC 시점에 사이트 접속 없이 자동 대조됩니다. 등록기관을 "전체"로 두어야 금융위(금감원) 등록분과 '
+        + '지방자치단체 등록분이 함께 내려갑니다. 파일 대조에서 일치·유사 건이 나올 때만 사이트에서 실시간 재확인하십시오. '
+        + '조회 자료에는 사업자등록번호가 없고 법인등록번호가 제공되므로 업체명 또는 법인등록번호로 대조합니다.'
+  },
+  {
+    id: 'vasp',
+    name: '가상자산취급업 (KoFIU 가상자산사업자 신고현황)',
+    cycle: '매월 1회',
+    file: true,
+    web: false,
+    risk: true,
+    baseFromName: true,     // 기준연월은 파일명에 적힌 월을 우선 사용
+    url: 'https://www.kofiu.go.kr',
+    docs: [
+      '(고객) 최초 · 갱신 · 변경 신고자료 및 제반 증빙서류 일체',
+      '(고객) 신고 수리증 및 변경신고 수리 공문',
+      '(고객) ISMS 인증서',
+      '(고객) 사업추진계획서상 예치금 및 고유재산 구분관리 방법'
+    ],
+    note: '홈페이지에 매월 게시되는 신고현황 엑셀을 등록하십시오. 자료 기준연월은 파일명에 적힌 월(예: '
+        + '"…2026년 8월.xlsx", "…202608.xlsx")로 자동 입력되므로 게시된 파일명을 바꾸지 말고 그대로 등록하십시오. '
+        + '게시 경로가 바뀔 수 있으므로 '
+        + '조회 사이트 주소는 화면에서 수정해 저장하십시오. 신고현황에 등재되지 않으면 적용 제외 사유가 됩니다. '
+        + '적용 대상이면 신고 수리증 · ISMS 인증서 · 예치금 구분관리 방법까지 징구해야 하므로 '
+        + '목록 등재 확인만으로 종결하지 마십시오.'
+  },
+  {
+    id: 'efinance',
+    name: '전자금융업자 (FINE 등록 현황)',
+    cycle: '매월 1회',
+    file: true,
+    web: false,
+    risk: false,
+    url: 'https://fine.fss.or.kr',
+    note: '"등록 및 말소 현황" 파일의 등록 시트만 등록하십시오. 말소 현황은 판정에 사용하지 않습니다. '
+        + '업종이 컬럼별로 표시된 자료(선불 · 직불 · PG · ESCROW · EBPP)를 자동 인식해 조합합니다.'
+  }
+];
+
+/* 전자금융업 해당 시 후속 확인 항목 */
+const EFIN_CHECKS = [
+  '가상계좌 · 펌뱅킹 서비스 재판매 이용 여부 → 이용 시 상장 여부와 무관하게 실제소유자 확인',
+  '상장법인 또는 사업보고서 제출대상법인 여부 (DART 제출이력 확인)',
+  '등록업종이 결제대행업(PG) · 선불전자지급수단발행업인지 → 해당 시 등록증 첨부'
+];
+
+/* ============================================================
+   2. 상태 및 저장
+   ============================================================ */
+const LS_KEY = 'aml-registry-lookup-v1';
+
+const state = {
+  data: {},   // id -> { fileName, baseDate, loadedAt, rows[], headers[], colmap{} }
+  urls: {}    // id -> 조회 사이트 주소
+};
+
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    // 용량 초과 등 — 저장 실패해도 현재 세션 조회는 가능
+    return false;
+  }
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    state.data = parsed.data || {};
+    state.urls = parsed.urls || {};
+
+    // 더 이상 사용하지 않는 자료(예: 폐지된 말소 현황 슬롯)는 정리한다
+    const valid = new Set(SOURCES.filter(s => s.file).map(s => s.id));
+    Object.keys(state.data).forEach(k => { if (!valid.has(k)) delete state.data[k]; });
+  } catch (e) { /* 손상된 저장값은 무시 */ }
+}
+
+/* ============================================================
+   3. 파일 파싱 (CSV / XLSX)
+   ============================================================ */
+
+/* 구분자 기반 파서 — 따옴표 안의 구분자·줄바꿈까지 처리한다.
+   CSV(쉼표)와 Excel 클립보드(탭)를 같은 로직으로 처리한다. */
+function parseDelimited(text, delim) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else quoted = false;
+      } else cell += c;
+      continue;
+    }
+
+    if (c === '"') { quoted = true; }
+    else if (c === delim) { row.push(cell); cell = ''; }
+    else if (c === '\r') { /* 무시 */ }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ''));
+}
+
+/* 탭 / 쉼표 / 세미콜론 중 어느 구분자인지 앞부분 표본으로 판별 */
+function sniffDelim(text) {
+  const sample = text.slice(0, 5000);
+  const count = ch => (sample.match(new RegExp('\\' + ch, 'g')) || []).length;
+  const tab = (sample.match(/\t/g) || []).length;
+  const comma = count(',');
+  const semi = count(';');
+
+  if (tab >= comma && tab >= semi && tab > 0) return '\t';
+  if (semi > comma) return ';';
+  return ',';
+}
+
+/* 국내 공표 CSV는 CP949(EUC-KR)인 경우가 많아 인코딩을 자동 판별한다 */
+function decodeText(buf) {
+  try {
+    const t = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    return t.replace(/^﻿/, '');
+  } catch (e) {
+    try { return new TextDecoder('euc-kr').decode(buf); }
+    catch (e2) { return new TextDecoder('utf-8').decode(buf); }
+  }
+}
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const isExcel = /\.xlsx?$/i.test(file.name);
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
+
+    fr.onload = () => {
+      try {
+        if (isExcel) {
+          const bytes = new Uint8Array(fr.result);
+
+          // DRM 컨테이너는 zip(PK) 시그니처가 아니라 DRM 헤더로 시작한다
+          const head = String.fromCharCode.apply(null, bytes.subarray(0, 64));
+          if (!(bytes[0] === 0x50 && bytes[1] === 0x4B) || /DRM|Fasoo/i.test(head)) {
+            reject(new Error('DRM으로 보호된 파일이라 브라우저에서 읽을 수 없습니다. '
+              + 'Excel에서 열어 CSV로 저장하거나, 아래 "붙여넣기로 등록"을 사용하십시오.'));
+            return;
+          }
+
+          if (typeof XLSX === 'undefined') {
+            reject(new Error('XLSX 파서를 불러오지 못했습니다. 엑셀에서 CSV(UTF-8)로 저장해 올려주십시오.'));
+            return;
+          }
+          const wb = XLSX.read(bytes, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+          resolve(rows.filter(r => r.some(v => String(v).trim() !== '')));
+        } else {
+          const txt = decodeText(fr.result);
+          if (/DRM|Fasoo/i.test(txt.slice(0, 200))) {
+            reject(new Error('DRM으로 보호된 파일입니다. Excel에서 열어 CSV로 저장하거나 "붙여넣기로 등록"을 사용하십시오.'));
+            return;
+          }
+          resolve(parseDelimited(txt, sniffDelim(txt)));
+        }
+      } catch (e) { reject(e); }
+    };
+
+    fr.readAsArrayBuffer(file);
+  });
+}
+
+/* ============================================================
+   4. 헤더 자동 인식
+   ============================================================ */
+/* 필드 인식 순서가 곧 우선순위다. 한 컬럼은 한 필드에만 배정된다
+   (예: '사업자등록번호'가 brn 에 배정되면 regno 의 '등록번호'로 재사용되지 않는다). */
+const COLKEYS = {
+  brn:     ['사업자등록번호', '사업자번호', '사업자 등록번호', '사업자등록', '법인등록번호'],
+  name:    ['상호', '법인명', '업체명', '회사명', '명칭', '기관명', '금융회사명',
+            '업자명', '영업자명', '업소명', '가맹점명'],
+  regno:   ['등록증번호', '영업자번호', '등록번호', '인가번호', '신고번호', '허가번호', '업무등록번호', '등록·신고번호'],
+  ceo:     ['대표자', '대표이사', '대표', '성명'],
+  regdate: ['등록날짜', '등록일', '등록일자', '인가일', '신고일', '등록연월일', '최초등록일', '허가일'],
+  biztype: ['업종', '등록업종', '사업내용', '영업종류', '취급업무', '업무범위', '업종구분', '등록구분', '영업범위'],
+  addr:    ['주소', '소재지', '사업장', '본점', '영업소'],
+  expire:  ['유효기간', '만료일', '등록기간', '영업기간'],
+  status:  ['등록상태', '처리상태', '말소여부', '영업상태', '운영상태', '상태'],
+  cancel:  ['말소일', '말소일자', '말소연월일', '취소일', '등록취소일', '폐업일', '철회일'],
+  agency:  ['등록기관', '등록관청', '감독기관', '등록기관명']
+};
+
+/* 업종이 단일 컬럼이 아니라 업종별 플래그 컬럼으로 표기된 자료를 처리한다.
+   예: 전자금융업 등록현황의 선불전자지급수단발행업 / 전자지급결제대행업(PG) / 결제대금예치업(ESCROW) …
+   해당 셀에 값(날짜·O·Y 등)이 있으면 그 업종을 영위하는 것으로 본다. */
+const BIZFLAG_RE = /업$|업\(/;
+
+/* 말소·취소·폐업 이력이 있는 건인지 판정한다.
+   상태·말소일 컬럼이 제공되는 자료(대부업 운영상태 등)에만 해당한다.
+   유효기간(expire)은 판정에 사용하지 않고 기록·표시용으로만 둔다. */
+function isCancelled(r) {
+  if (/말소|취소|폐업|철회|해지/.test(r.status || '')) return true;
+  if ((r.cancel || '').replace(/[-\s.]/g, '') !== '') return true;
+  return false;
+}
+
+/* 헤더 후보 행을 앞쪽 12행에서 찾아 가장 많이 일치하는 행을 헤더로 본다.
+   제목 행·기준일자 행·병합 셀로 헤더 위치가 자료마다 달라지는 것에 대응한다. */
+function detectHeader(rows) {
+  let best = { idx: -1, score: 0, map: {}, flags: [] };
+  const limit = Math.min(rows.length, 12);
+
+  for (let i = 0; i < limit; i++) {
+    const cells = rows[i].map(v => String(v || '').replace(/\s/g, ''));
+    const map = {};
+    const used = new Set();
+    let score = 0;
+
+    for (const [field, keys] of Object.entries(COLKEYS)) {
+      for (let c = 0; c < cells.length; c++) {
+        if (map[field] !== undefined) break;
+        if (!cells[c] || used.has(c)) continue;
+        if (keys.some(k => cells[c].includes(k.replace(/\s/g, '')))) {
+          map[field] = c;
+          used.add(c);
+          score++;
+        }
+      }
+    }
+
+    // 남은 컬럼 중 업종명으로 보이는 것들을 업종 플래그 컬럼으로 수집
+    const flags = [];
+    for (let c = 0; c < cells.length; c++) {
+      if (used.has(c) || !cells[c]) continue;
+      if (BIZFLAG_RE.test(cells[c])) flags.push({ idx: c, label: String(rows[i][c]).trim() });
+    }
+
+    // 상호명 컬럼은 필수로 본다
+    if (map.name !== undefined && score > best.score) {
+      best = { idx: i, score, map, flags: flags.length >= 2 ? flags : [] };
+    }
+  }
+
+  return best;
+}
+
+/* 헤더 위쪽 제목·기준일자 행에서 기준연월을 추출한다 (예: "2026년 8월 26일 기준") */
+function guessBaseFromTitle(rows, headerIdx) {
+  const text = rows.slice(0, Math.max(headerIdx, 0))
+    .map(r => r.join(' ')).join(' ');
+  const m = text.match(/(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월/);
+  if (!m) return '';
+  return `${m[1]}-${String(m[2]).padStart(2, '0')}`;
+}
+
+const digits = s => String(s || '').replace(/\D/g, '');
+
+/* 법인격 표기·공백·기호를 제거해 상호명을 정규화 */
+function normName(s) {
+  return String(s || '')
+    .replace(/주식회사|유한책임회사|유한회사|합자회사|합명회사|사단법인|재단법인/g, '')
+    .replace(/㈜|㈱|㈲|\(주\)|\(株\)|\(유\)|\(재\)|\(사\)/g, '')
+    .replace(/[\s.,\-_()\[\]<>·ㆍ'"`~!@#$%^&*+=/\\|?]/g, '')
+    .toLowerCase();
+}
+
+function ingest(rows) {
+  const det = detectHeader(rows);
+  if (det.idx < 0) throw new Error('상호명 컬럼을 찾지 못했습니다. 헤더 행이 포함된 파일인지 확인하십시오.');
+
+  const headers = rows[det.idx].map(v => String(v || '').trim());
+  const out = [];
+
+  for (let i = det.idx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const get = f => (det.map[f] !== undefined ? String(r[det.map[f]] || '').trim() : '');
+    const name = get('name');
+    if (!name) continue;
+
+    const raw = {};
+    headers.forEach((h, c) => { if (h) raw[h] = String(r[c] || '').trim(); });
+
+    // 업종: 단일 컬럼이 있으면 그대로, 없으면 플래그 컬럼에서 조합
+    let biztype = get('biztype');
+    if (!biztype && det.flags.length) {
+      biztype = det.flags
+        .filter(f => String(r[f.idx] || '').trim() !== '')
+        .map(f => f.label)
+        .join(', ');
+    }
+
+    out.push({
+      name,
+      brn: get('brn'), regno: get('regno'), ceo: get('ceo'),
+      regdate: get('regdate'), biztype,
+      addr: get('addr'), expire: get('expire'),
+      status: get('status'), cancel: get('cancel'),
+      agency: get('agency'),
+      raw
+    });
+  }
+
+  if (!out.length) throw new Error('데이터 행이 없습니다.');
+
+  const colmap = Object.assign({}, det.map);
+  if (det.flags.length) colmap.biztype = '플래그 ' + det.flags.length + '개';
+
+  return {
+    rows: out,
+    headers,
+    colmap,
+    flags: det.flags.map(f => f.label),
+    baseGuess: guessBaseFromTitle(rows, det.idx)
+  };
+}
+
+/* ============================================================
+   5. 대조 로직
+   ============================================================ */
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function similarity(a, b) {
+  const max = Math.max(a.length, b.length);
+  if (!max) return 0;
+  // 길이 차가 크면 계산 생략
+  if (Math.abs(a.length - b.length) / max > 0.4) return 0;
+  return 1 - levenshtein(a, b) / max;
+}
+
+const TIER_LABEL = {
+  exact:   '사업자등록번호 일치',
+  name:    '상호명 일치',
+  similar: '상호명 유사 (확인 필요)'
+};
+
+function searchIn(rows, qName, qBrn) {
+  const nq = normName(qName);
+  const bq = digits(qBrn);
+  const hits = [];
+
+  for (const r of rows) {
+    let tier = null;
+
+    if (bq.length >= 10 && digits(r.brn) && digits(r.brn) === bq) {
+      tier = 'exact';
+    } else if (nq && normName(r.name) === nq) {
+      tier = 'name';
+    } else if (nq.length >= 2) {
+      const rn = normName(r.name);
+      if (rn && (rn.includes(nq) || nq.includes(rn))) tier = 'similar';
+      else if (rn && similarity(rn, nq) >= 0.75) tier = 'similar';
+    }
+
+    if (tier) hits.push(Object.assign({}, r, { tier }));
+  }
+
+  const order = { exact: 0, name: 1, similar: 2 };
+  hits.sort((a, b) => order[a.tier] - order[b.tier]);
+  return hits.slice(0, 20);
+}
+
+/* ============================================================
+   6. 자료 등록 화면
+   ============================================================ */
+const srcList = document.getElementById('srcList');
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderSources() {
+  srcList.innerHTML = '';
+
+  SOURCES.forEach(src => {
+    const d = state.data[src.id];
+    const url = state.urls[src.id] || src.url || '';
+    const box = document.createElement('div');
+    box.className = 'src';
+
+    let inner = `
+      <div class="src-head">
+        <span class="nm">${esc(src.name)}</span>
+        <span class="tag">${esc(src.cycle)}</span>
+        ${src.file ? '<span class="tag">파일 대조</span>' : ''}
+        ${src.web ? '<span class="tag">사이트 조회</span>' : ''}
+        ${src.risk ? '<span class="tag risk">당연 고위험</span>' : ''}
+      </div>
+      <div class="field">
+        <label>조회 사이트 주소</label>
+        <input type="url" data-url="${src.id}" value="${esc(url)}" placeholder="https://">
+      </div>`;
+
+    if (src.file) {
+      inner += `
+        <div class="src-grid" style="margin-top:10px">
+          <div class="field">
+            <label>목록 파일 (CSV / XLSX)</label>
+            <input type="file" data-file="${src.id}" accept=".csv,.xlsx,.xls">
+          </div>
+          <div class="field">
+            <label>자료 기준연월</label>
+            <input type="month" data-base="${src.id}" value="${esc(d && d.baseDate || '')}">
+          </div>
+        </div>`;
+
+      inner += `
+        <div class="actions" style="margin-top:8px">
+          <button class="small" data-paste="${src.id}">엑셀에서 붙여넣기로 등록</button>
+        </div>
+        <div data-pastebox="${src.id}" style="display:none;margin-top:8px">
+          <textarea data-pastearea="${src.id}" rows="6"
+            placeholder="Excel에서 헤더 행을 포함해 전체 선택(Ctrl+A) → 복사(Ctrl+C) → 여기에 붙여넣기(Ctrl+V)"></textarea>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-top:6px">
+            <input type="checkbox" data-pasteappend="${src.id}">
+            기존 자료에 추가 — 지역별·업종별로 시트가 나뉜 자료를 여러 번 붙여넣을 때 사용
+          </label>
+          <div class="actions" style="margin-top:6px">
+            <button class="small" data-pasteapply="${src.id}">등록</button>
+            <button class="small" data-pastecancel="${src.id}">취소</button>
+          </div>
+        </div>`;
+
+      if (d) {
+        const fields = Object.keys(d.colmap || {}).map(k => k).join(', ');
+        inner += `<div class="status loaded">등록됨 · ${d.rows.length.toLocaleString()}건 · ${esc(d.fileName)} · 적재 ${esc(d.loadedAt)}</div>
+                  <div class="colmap">인식된 컬럼: ${esc(fields || '없음')}</div>`;
+      } else {
+        inner += `<div class="status">미등록 — 파일 업로드 또는 붙여넣기로 등록하십시오.</div>`;
+      }
+    } else if (src.web) {
+      inner += `<div class="status" style="margin-top:10px">등록할 목록 파일이 없는 자료입니다. 조회 결과 화면에서 사이트를 열어 확인합니다.</div>`;
+    }
+
+    if (src.web && src.steps && src.steps.length) {
+      inner += `<div class="colmap">사이트 조회 절차<ol style="margin:4px 0 0 16px;padding:0">`
+            + src.steps.map(s => `<li>${esc(s)}</li>`).join('')
+            + `</ol></div>`;
+    }
+
+    if (src.note) inner += `<div class="note">${esc(src.note)}</div>`;
+
+    box.innerHTML = inner;
+    srcList.appendChild(box);
+  });
+
+  // 요약
+  const loaded = SOURCES.filter(s => s.file && state.data[s.id]).length;
+  const total = SOURCES.filter(s => s.file).length;
+  document.getElementById('srcSummary').textContent = `(파일형 ${loaded}/${total} 등록)`;
+
+  // 이벤트 연결
+  srcList.querySelectorAll('input[data-file]').forEach(el => {
+    el.addEventListener('change', async ev => {
+      const id = el.dataset.file;
+      const file = ev.target.files[0];
+      if (!file) return;
+
+      const statusEl = el.closest('.src').querySelector('.status');
+      statusEl.className = 'status';
+      statusEl.textContent = '읽는 중...';
+
+      try {
+        const rows = await readFile(file);
+        const parsed = ingest(rows);
+        const baseEl = el.closest('.src').querySelector('input[data-base]');
+        const src = SOURCES.find(s => s.id === id) || {};
+        // baseFromName 자료는 파일명의 연월을 시트 안 기준일자 문구보다 먼저 쓴다
+        const nameBase = src.baseFromName ? baseFromFileName(file.name) : '';
+
+        // 기준연월 입력칸은 지난달 값이 그대로 남아 있으므로, 이번에 직접 고친 경우만 우선한다
+        state.data[id] = {
+          fileName: file.name,
+          baseDate: (baseEl && baseEl._touched && baseEl.value)
+            || nameBase || parsed.baseGuess || guessBaseDate(file),
+          loadedAt: new Date().toLocaleString('ko-KR'),
+          rows: parsed.rows,
+          headers: parsed.headers,
+          colmap: parsed.colmap,
+          flags: parsed.flags
+        };
+
+        const ok = save();
+        renderSources();
+        if (!ok) {
+          const s2 = srcList.querySelector(`input[data-file="${id}"]`).closest('.src').querySelector('.status');
+          s2.className = 'status err';
+          s2.textContent += ' (저장 용량 초과 — 이번 세션에서만 사용됩니다)';
+        }
+      } catch (e) {
+        statusEl.className = 'status err';
+        statusEl.textContent = '오류: ' + e.message;
+      }
+    });
+  });
+
+  // 붙여넣기 입력 (DRM 파일 등 브라우저가 직접 읽을 수 없는 자료용)
+  srcList.querySelectorAll('button[data-paste]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const box = srcList.querySelector(`div[data-pastebox="${btn.dataset.paste}"]`);
+      box.style.display = box.style.display === 'none' ? '' : 'none';
+      if (box.style.display === '') box.querySelector('textarea').focus();
+    });
+  });
+
+  srcList.querySelectorAll('button[data-pastecancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.pastecancel;
+      const box = srcList.querySelector(`div[data-pastebox="${id}"]`);
+      box.querySelector('textarea').value = '';
+      box.style.display = 'none';
+    });
+  });
+
+  srcList.querySelectorAll('button[data-pasteapply]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.pasteapply;
+      const box = btn.closest('.src');
+      const text = box.querySelector(`textarea[data-pastearea="${id}"]`).value;
+      const statusEl = box.querySelector('.status');
+
+      if (!text.trim()) { alert('붙여넣은 내용이 없습니다.'); return; }
+
+      try {
+        const rows = parseDelimited(text, sniffDelim(text));
+        const parsed = ingest(rows);
+        const baseEl = box.querySelector('input[data-base]');
+        const now = new Date();
+        const prev = state.data[id];
+        const appendEl = box.querySelector(`input[data-pasteappend="${id}"]`);
+        const appending = !!(appendEl && appendEl.checked && prev);
+
+        state.data[id] = {
+          fileName: appending
+            ? `붙여넣기 누적 (${(prev.rows.length + parsed.rows.length).toLocaleString()}건)`
+            : '붙여넣기 입력',
+          baseDate: (baseEl && baseEl._touched && baseEl.value) || parsed.baseGuess ||
+            (appending && prev.baseDate) ||
+            `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+          loadedAt: now.toLocaleString('ko-KR'),
+          rows: appending ? prev.rows.concat(parsed.rows) : parsed.rows,
+          headers: parsed.headers,
+          colmap: parsed.colmap,
+          flags: parsed.flags
+        };
+
+        const ok = save();
+        renderSources();
+        if (!ok) {
+          const s2 = srcList.querySelector(`button[data-paste="${id}"]`).closest('.src').querySelector('.status');
+          s2.className = 'status err';
+          s2.textContent += ' (저장 용량 초과 — 이번 세션에서만 사용됩니다)';
+        }
+      } catch (e) {
+        statusEl.className = 'status err';
+        statusEl.textContent = '오류: ' + e.message;
+      }
+    });
+  });
+
+  srcList.querySelectorAll('input[data-base]').forEach(el => {
+    el.addEventListener('change', () => {
+      const id = el.dataset.base;
+      el._touched = true;   // 담당자가 직접 입력했음을 표시 (자동 추정보다 우선)
+      if (state.data[id]) { state.data[id].baseDate = el.value; save(); }
+    });
+  });
+
+  srcList.querySelectorAll('input[data-url]').forEach(el => {
+    el.addEventListener('change', () => {
+      state.urls[el.dataset.url] = el.value.trim();
+      save();
+    });
+  });
+}
+
+/* 파일명에서 기준연월(YYYY-MM)을 뽑는다. 찾지 못하면 빈 문자열.
+   2026년 8월 / 2026.8월말 / 2026-08 / 202608 / 20260826 형태를 모두 인식하며,
+   월이 한 자리로 표기된 경우(8월)도 두 자리로 맞춘다. */
+function baseFromFileName(name) {
+  const n = String(name || '').replace(/\.[^.]+$/, '');   // 확장자 제거
+
+  const m = n.match(/(20\d{2})\s*[.\-_/년]?\s*(1[0-2]|0?[1-9])\s*월/)   // 2026년 8월 · 2026.8월
+        || n.match(/(20\d{2})\s*[.\-_/]\s*(1[0-2]|0?[1-9])(?!\d)/)      // 2026-08 · 2026.8
+        || n.match(/(20\d{2})(0[1-9]|1[0-2])/);                          // 202608 · 20260826
+
+  return m ? `${m[1]}-${String(m[2]).padStart(2, '0')}` : '';
+}
+
+/* 기준연월 추정 — 파일명이 먼저, 없으면 파일 수정월 */
+function guessBaseDate(file) {
+  const fromName = baseFromFileName(file.name);
+  if (fromName) return fromName;
+  const d = new Date(file.lastModified || Date.now());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/* ============================================================
+   7. 조회 실행 및 결과 표출
+   ============================================================ */
+let lastResult = null;
+
+/* 확정 건 자동 선택 — 조회 결과가 여러 건일 때 어느 건을 판정 근거로 쓸지 정한다.
+   pick 값 : null 미선택(담당자가 골라야 함) / -1 동일 법인 없음 / 0 이상 hits 배열 인덱스
+
+   사업자등록번호 또는 상호명이 일치하는 건이 한 법인으로 좁혀질 때만 자동 선택한다.
+   상호명 "카카오" 처럼 서로 다른 법인이 여러 건 걸리면 자동 선택하지 않고
+   담당자가 확정 1건을 직접 고르게 남겨둔다. */
+function autoPick(hits) {
+  const strong = hits.filter(h => h.tier === 'exact' || h.tier === 'name');
+  if (!strong.length) return null;
+
+  const key = h => normName(h.name) + '|' + digits(h.brn);
+  if (new Set(strong.map(key)).size > 1) return null;
+
+  const active = strong.filter(h => !isCancelled(h));
+  return hits.indexOf(active[0] || strong[0]);
+}
+
+/* 확정 건 하나만으로 업종 판정을 낸다 */
+function kindFromPick(hits, pick) {
+  if (pick != null && pick >= 0 && hits[pick]) {
+    return isCancelled(hits[pick]) ? 'cancelled' : 'hit';
+  }
+  if (pick === -1) return 'none';           // 후보 모두 다른 법인으로 확인
+  return hits.length ? 'warn' : 'none';     // 미선택 상태 = 확인 필요
+}
+
+/* 확정 건 정보를 한 줄 문안으로 만든다 (확인내용 칸 · profile 첨부 문안 공용) */
+function pickMemo(h) {
+  return [
+    h.name,
+    h.regno && `등록번호 ${h.regno}`,
+    h.regdate && `등록일 ${h.regdate}`,
+    h.biztype && `업종 ${h.biztype}`,
+    h.agency && `등록기관 ${h.agency}`,
+    h.expire && `유효기간 ${h.expire}`,
+    `상태 ${isCancelled(h) ? '말소·폐업' : (h.status || '유효')}`
+  ].filter(Boolean).join(' / ');
+}
+
+function runSearch() {
+  const qName = document.getElementById('qName').value.trim();
+  const qBrn  = document.getElementById('qBrn').value.trim();
+
+  if (!qName && !qBrn) {
+    alert('상호명 또는 사업자등록번호를 입력하십시오.');
+    return;
+  }
+
+  const now = new Date().toLocaleString('ko-KR');
+  const results = SOURCES.map(src => {
+    // fileKind : 목록 파일 대조 결과 (null = 파일 대조 대상 아님)
+    // pick     : 파일 대조 결과 중 확정 1건 / webPick : 사이트 조회 결과 중 확정 1건
+    // mark     : 사이트 조회 결과 기록 ('' 미확인 / hit / cancelled / none / na)
+    const r = {
+      src,
+      fileKind: null, hits: [], data: null, pick: null,
+      mark: '', memo: '', evidence: '', pasted: null, webHits: [], webPick: null
+    };
+
+    if (src.file) {
+      const d = state.data[src.id];
+      if (!d) {
+        r.fileKind = 'nodata';
+      } else {
+        r.data = d;
+        r.hits = searchIn(d.rows, qName, qBrn);
+        r.pick = autoPick(r.hits);
+        r.fileKind = kindFromPick(r.hits, r.pick);
+      }
+    }
+
+    return r;
+  });
+
+  lastResult = { qName, qBrn, now, results };
+  renderResult(lastResult);
+}
+
+/* 업종 단위 판정 — 파일 대조 결과와 사이트 조회 기록을 합쳐 하나로 요약한다.
+   파일 대조에서 미해당이 나오면 사이트 재확인 없이 미해당으로 본다
+   (사이트 재확인은 일치·유사 건에만 필요하다). */
+function srcVerdict(r) {
+  if (r.fileKind === 'hit' || r.mark === 'hit')             return ['hit',  '해당'];
+  if (r.fileKind === 'cancelled' || r.mark === 'cancelled') return ['hit',  '말소 · 폐업'];
+  if (r.fileKind === 'warn')                               return ['warn', '확정 선택 필요'];
+  if (r.mark === 'na')                                     return ['warn', '조회 불가'];
+  if (r.fileKind === 'none' || r.mark === 'none')          return ['none', '미해당'];
+  if (r.fileKind === 'nodata' && !r.src.web)               return ['warn', '자료 미등록'];
+  return ['web', '사이트 조회 필요'];
+}
+
+const PENDING_LABELS = ['사이트 조회 필요', '조회 불가', '자료 미등록'];
+
+function verdictOf(results) {
+  const V = results.map(r => ({ r, label: srcVerdict(r)[1] }));
+
+  const riskHit   = V.filter(x => x.r.src.risk && x.label === '해당').map(x => x.r);
+  const efinHit   = V.some(x => x.r.src.id === 'efinance' && x.label === '해당');
+  const cancelled = V.filter(x => x.label === '말소 · 폐업').map(x => x.r);
+  const warn      = V.filter(x => x.label === '확정 선택 필요').map(x => x.r);
+  const pending   = V.filter(x => PENDING_LABELS.indexOf(x.label) >= 0).map(x => x.r);
+
+  // 말소 건은 무등록 영업 가능성이 있어 유효 등록보다 우선해 표시한다
+  if (cancelled.length && !riskHit.length && !efinHit) {
+    return {
+      cls: 'hit',
+      text: `등록 말소 · 취소 이력 확인 — ${cancelled.map(r => r.src.name).join(', ')}`,
+      sub: '해당 업종 영업을 계속하고 있다면 무등록 영업에 해당합니다. 영업 실태와 재등록 여부를 확인하십시오.'
+    };
+  }
+
+  // 유효 등록과 말소가 함께 확인되는 경우(일부 업종 말소 등)를 놓치지 않도록 덧붙인다
+  const cancelNote = cancelled.length
+    ? ` 아울러 ${cancelled.map(r => r.src.name).join(', ')} 에서 말소·취소 이력이 확인됩니다.`
+    : '';
+
+  if (riskHit.length) {
+    return {
+      cls: 'hit',
+      text: `당연 고위험 업종 해당 — ${riskHit.map(r => r.src.name).join(', ')}`,
+      sub: '강화된 고객확인(EDD) 대상입니다. 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
+    };
+  }
+  if (efinHit) {
+    return {
+      cls: 'warn',
+      text: '전자금융업자 해당 — 당연 고위험 아님, 별도 판정 필요',
+      sub: '아래 후속 확인 항목에 따라 실제소유자 확인 대상 여부와 등록증 첨부 필요 여부를 판정하십시오.' + cancelNote
+    };
+  }
+  if (warn.length) {
+    return {
+      cls: 'warn',
+      text: `확정 건 선택 필요 — ${warn.map(r => r.src.name).join(', ')}`,
+      sub: '사업자등록번호·대표자·주소를 대조해 동일 법인인 확정 1건을 선택하거나, '
+         + '모두 다른 법인이면 "동일 법인이 아님"을 선택하십시오.'
+    };
+  }
+  if (pending.length === results.length) {
+    return { cls: 'warn', text: '대조 가능한 자료가 없습니다', sub: '자료 등록 후 다시 조회하십시오.' };
+  }
+  return {
+    cls: 'none',
+    text: '등록 내역 없음',
+    sub: pending.length
+      ? `단, ${pending.map(r => r.src.name).join(', ')} 은(는) 별도 확인이 필요합니다.`
+      : '대조한 모든 업종에서 등록 내역이 확인되지 않았습니다.'
+  };
+}
+
+/* 클립보드 복사 — file:// 로 열면 navigator.clipboard 가 막히는 환경이 있어
+   사용자 클릭 시점에 동작하는 execCommand 를 먼저 쓴다 */
+function copyToClipboard(text) {
+  if (!text) return false;
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  document.body.appendChild(ta);
+  ta.select();
+
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  ta.remove();
+
+  if (!ok && navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => {});
+    ok = true;
+  }
+  return ok;
+}
+
+/* 종합 판정 블록만 따로 그려, 실시간 조회 결과를 기록할 때 입력 중인 값을 잃지 않고 갱신한다 */
+function verdictHtml(res) {
+  const v = verdictOf(res.results);
+  return `
+    <div class="verdict ${v.cls}">
+      <span>${esc(v.text)}</span>
+    </div>
+    <div class="meta" style="margin-bottom:14px">
+      조회일시 ${esc(res.now)} ·
+      상호명 <b>${esc(res.qName || '-')}</b> ·
+      사업자등록번호 <b>${esc(res.qBrn || '-')}</b><br>
+      ${esc(v.sub)}
+    </div>`;
+}
+
+function refreshVerdict() {
+  const box = document.getElementById('verdictBox');
+  if (box && lastResult) box.innerHTML = verdictHtml(lastResult);
+}
+
+/* 일치 건 표 — 파일 대조와 사이트 조회 양쪽에서 같은 형태로 쓴다.
+   유효기간은 판정에 쓰지 않고 상태 칸에 참고로만 덧붙인다.
+
+   group 을 넘기면 맨 앞에 "확정" 라디오 열이 붙어 여러 건 중 1건만 판정 근거로 고를 수 있다.
+   판정은 고른 1건만으로 결정된다 (pick 값 규칙은 autoPick 주석 참조). */
+function hitsTableHtml(hits, group, pick) {
+  const g = group || '';
+  let t = `<table class="res">
+    <tr>${g ? '<th class="pick">확정</th>' : ''}
+        <th>판정</th><th>상태</th><th>상호명</th><th>사업자·법인등록번호</th><th>등록번호</th>
+        <th>업종</th><th>대표자</th><th>등록일</th><th>주소</th></tr>`;
+  hits.forEach((h, k) => {
+    const st = isCancelled(h)
+      ? `<span style="color:var(--hit);font-weight:700">말소·폐업${h.cancel ? ' (' + esc(h.cancel) + ')' : ''}</span>`
+      : (esc(h.status) || '<span style="color:var(--ok)">유효</span>');
+    t += `<tr class="${g && pick === k ? 'picked' : ''}">
+      ${g ? `<td class="pick"><input type="radio" name="${g}" value="${k}" data-pick="${g}"
+             ${pick === k ? 'checked' : ''}></td>` : ''}
+      <td><span class="tier">${esc(TIER_LABEL[h.tier])}</span></td>
+      <td>${st}${h.expire ? `<br><span style="font-size:11px;color:var(--muted)">유효기간 ${esc(h.expire)}</span>` : ''}</td>
+      <td>${esc(h.name)}</td>
+      <td>${esc(h.brn || '-')}</td>
+      <td>${esc(h.regno || '-')}</td>
+      <td>${esc(h.biztype || '-')}</td>
+      <td>${esc(h.ceo || '-')}</td>
+      <td>${esc(h.regdate || '-')}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(h.addr || '-')}</td>
+    </tr>`;
+  });
+
+  // 걸린 후보가 모두 다른 법인일 때 미해당으로 확정할 수 있는 선택지
+  if (g) {
+    t += `<tr class="${pick === -1 ? 'picked' : ''}">
+      <td class="pick"><input type="radio" name="${g}" value="-1" data-pick="${g}"
+        ${pick === -1 ? 'checked' : ''}></td>
+      <td colspan="9" style="font-size:12px;color:var(--muted)">
+        위 후보 모두 동일 법인이 아님 → <b>미해당</b>으로 확정</td>
+    </tr>`;
+  }
+  return t + '</table>';
+}
+
+/* 확정 1건을 고르라는 안내 — 미선택 상태에서만 띄운다 */
+function pickHintHtml(hits, pick) {
+  if (pick != null || !hits.length) return '';
+  return `<div class="pickhint">${
+    hits.length === 1
+      ? '유사 후보 1건입니다 — 동일 법인이면 <b>확정</b>으로 선택하십시오.'
+      : `서로 다른 법인이 ${hits.length}건 조회되었습니다 — 동일 법인인 <b>확정 1건</b>을 선택하십시오.`
+  } 확정한 건만 판정과 profile 첨부 문안에 반영됩니다.</div>`;
+}
+
+/* 해당으로 확정됐을 때 뜨는 후속 항목 — 확정 선택 직후 바로 나타나야 하므로 따로 그린다.
+   전자금융업은 판정용 확인 항목, 그 밖의 업종은 적용 대상 시 징구해야 하는 증빙 목록이다. */
+function checksHtml(r) {
+  const hit = r.fileKind === 'hit' || r.mark === 'hit';
+
+  let title = '', items = null;
+  if (r.src.id === 'efinance' && r.fileKind === 'hit') {
+    title = '후속 확인 항목';
+    items = EFIN_CHECKS;
+  } else if (hit && r.src.docs && r.src.docs.length) {
+    title = '적용 대상 — 징구 · 확인 증빙';
+    items = r.src.docs;
+  }
+  if (!items) return '';
+
+  return `<ul class="checklist">
+      <li style="font-weight:700;color:var(--muted);font-size:12px">${esc(title)}</li>`
+    + items.map(c => `<li><label><input type="checkbox">${esc(c)}</label></li>`).join('')
+    + `</ul>`;
+}
+
+/* 목록 파일 대조 결과 영역 */
+function fileHitsHtml(r, i) {
+  if (!r.hits.length) return `<div class="empty">일치하는 등록 내역이 없습니다.</div>`;
+  return hitsTableHtml(r.hits, `pk-file-${i}`, r.pick) + pickHintHtml(r.hits, r.pick);
+}
+
+/* 사이트 조회 결과 영역 — 표 붙여넣기 대조 결과 또는 저장된 원문 증빙 */
+function webHitsHtml(r, i) {
+  if (r.src.webTable) {
+    if (!r.pasted) return '';
+    const n = r.pasted.rows.length;
+    if (!r.webHits.length) {
+      return `<div class="status" style="margin-top:8px">붙여넣은 ${n.toLocaleString()}건 중 일치 항목이 없습니다. `
+           + `검색 조건을 확인하거나 "미해당"으로 기록하십시오.</div>`;
+    }
+    return `<div class="status loaded" style="margin-top:8px">붙여넣은 ${n.toLocaleString()}건 중 ${r.webHits.length}건 일치</div>`
+         + hitsTableHtml(r.webHits, `pk-web-${i}`, r.webPick)
+         + pickHintHtml(r.webHits, r.webPick);
+  }
+
+  // 표 파싱이 불가한 자료 — 원문을 증빙으로 보관만 한다
+  if (!r.evidence) return '';
+  return `<div class="status loaded" style="margin-top:8px">조회 결과 원문이 증빙으로 저장되었습니다 (자동 대조는 하지 않습니다)</div>
+    <pre class="colmap" style="white-space:pre-wrap;max-height:200px;overflow:auto">${esc(r.evidence)}</pre>`;
+}
+
+function renderResult(res) {
+  const panel = document.getElementById('resultPanel');
+  const body = document.getElementById('resultBody');
+
+  let html = `<div id="verdictBox">${verdictHtml(res)}</div>`;
+
+  res.results.forEach((r, i) => {
+    const url = state.urls[r.src.id] || r.src.url || '';
+    const sv = srcVerdict(r);
+
+    html += `
+      <div class="rescard ${sv[0]}" data-card="${i}">
+        <div class="rescard-head">
+          <span class="nm">${esc(r.src.name)}</span>
+          <span class="badge ${sv[0]}">${esc(sv[1])}</span>
+          ${r.src.risk ? '<span class="tag risk">당연 고위험</span>' : ''}
+        </div>`;
+
+    /* ── 목록 파일 자동 대조 ── */
+    if (r.src.file) {
+      if (r.fileKind === 'nodata') {
+        html += `<div class="meta"><b>목록 파일 대조</b> — 자료 미등록 (갱신 ${esc(r.src.cycle)})</div>
+          <div class="empty">위 "업종별 자료 등록"에서 목록 파일을 등록하면 자동 대조됩니다.</div>`;
+      } else {
+        html += `<div class="meta"><b>목록 파일 대조</b> · 기준연월 ${esc(r.data.baseDate || '미지정')} ·
+          ${esc(r.data.fileName)} · ${r.data.rows.length.toLocaleString()}건 대조</div>
+          <div data-filehits="${i}">${fileHitsHtml(r, i)}</div>`;
+      }
+    }
+
+    /* ── 사이트 실시간 조회 ── */
+    if (r.src.web) {
+      const MARKS = [['hit', '해당'], ['cancelled', '말소 · 폐업'], ['none', '미해당'], ['na', '조회 불가']];
+      const pasteLabel = r.src.webTable ? '결과 표 붙여넣어 대조' : '조회 결과 원문 붙여넣기';
+      const ph = r.src.webTable
+        ? '사이트 결과 표를 헤더 행까지 포함해 드래그 복사(Ctrl+C) → 여기에 붙여넣기(Ctrl+V)'
+        : '해당 업체 항목을 드래그 복사해 붙여넣으십시오. 자동 대조 없이 증빙으로 저장만 합니다.';
+
+      html += `
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+          <div class="meta"><b>사이트 실시간 조회</b>${
+            r.src.file ? ' — 위 파일 대조에서 일치 · 유사 건이 나온 경우에만 확인하십시오' : ''}</div>
+          <div class="actions noprint">
+            ${url ? `<button class="small" data-weblink="${i}">조회 사이트 열기 (상호명 복사)</button>` : ''}
+            <button class="small" data-webpaste="${i}">${pasteLabel}</button>
+          </div>
+          ${r.src.steps && r.src.steps.length
+            ? `<div class="colmap noprint">조회 절차<ol style="margin:4px 0 0 16px;padding:0">`
+              + r.src.steps.map(s => `<li>${esc(s)}</li>`).join('') + `</ol></div>`
+            : ''}
+          <div data-webbox="${i}" style="display:none;margin-top:8px" class="noprint">
+            <textarea data-webarea="${i}" rows="5" placeholder="${esc(ph)}"></textarea>
+            <div class="actions" style="margin-top:6px">
+              <button class="small" data-webapply="${i}">${r.src.webTable ? '대조' : '저장'}</button>
+              <button class="small" data-webcancel="${i}">취소</button>
+            </div>
+          </div>
+          <div data-webhits="${i}">${webHitsHtml(r, i)}</div>
+          <table class="res" style="margin-top:8px">
+            <tr><th style="width:110px">조회 결과</th><td>
+              <div class="noprint" style="margin-bottom:6px">
+                ${MARKS.map(m => `<label style="margin-right:14px;font-size:13px">
+                  <input type="radio" name="wm${i}" value="${m[0]}" data-webmark="${i}"
+                    ${r.mark === m[0] ? 'checked' : ''}> ${m[1]}</label>`).join('')}
+              </div>
+              <input type="text" data-webmemo="${i}" value="${esc(r.memo || '')}"
+                placeholder="등록번호 · 등록일 · 운영상태 등 확인 내용 (profile 첨부 문안에 그대로 들어갑니다)"
+                style="width:100%">
+            </td></tr>
+          </table>
+        </div>`;
+    }
+
+    if (r.src.note) html += `<div class="note">${esc(r.src.note)}</div>`;
+    html += `<div data-checks="${i}">${checksHtml(r)}</div>`;
+
+    html += `</div>`;
+  });
+
+  body.innerHTML = html;
+  bindWebCards();
+  panel.style.display = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ------------------------------------------------------------
+   결과 카드의 조작 처리 (확정 선택 · 실시간 조회 기록)
+   기록값은 즉시 lastResult 에 반영해 종합 판정·내보내기와 어긋나지 않게 한다
+   ------------------------------------------------------------ */
+function updateCard(i) {
+  const r = lastResult.results[i];
+  const body = document.getElementById('resultBody');
+
+  const fileBox = body.querySelector(`[data-filehits="${i}"]`);
+  if (fileBox) fileBox.innerHTML = fileHitsHtml(r, i);
+
+  const hitBox = body.querySelector(`[data-webhits="${i}"]`);
+  if (hitBox) hitBox.innerHTML = webHitsHtml(r, i);
+
+  // 후속 확인 항목은 확정 선택 결과에 따라 나타나거나 사라진다.
+  // 이미 체크해 둔 항목이 있으면 지우지 않는다.
+  const chkBox = body.querySelector(`[data-checks="${i}"]`);
+  if (chkBox && !chkBox.querySelector('input:checked')) chkBox.innerHTML = checksHtml(r);
+
+  bindPicks();   // 표를 다시 그렸으므로 확정 라디오를 다시 연결한다
+
+  const memoEl = body.querySelector(`[data-webmemo="${i}"]`);
+  if (memoEl) memoEl.value = r.memo || '';
+
+  body.querySelectorAll(`[data-webmark="${i}"]`).forEach(el => {
+    el.checked = (el.value === r.mark);
+  });
+
+  const card = body.querySelector(`[data-card="${i}"]`);
+  if (card) {
+    const sv = srcVerdict(r);
+    card.className = 'rescard ' + sv[0];
+    card.setAttribute('data-card', i);
+    const b = card.querySelector('.badge');
+    b.className = 'badge ' + sv[0];
+    b.textContent = sv[1];
+  }
+
+  refreshVerdict();
+}
+
+/* 확정 1건 선택 — 판정은 고른 건만으로 다시 낸다.
+   표를 다시 그릴 때마다 호출되므로 중복 연결을 플래그로 막는다. */
+function bindPicks() {
+  document.getElementById('resultBody').querySelectorAll('[data-pick]').forEach(el => {
+    if (el._pickBound) return;
+    el._pickBound = true;
+
+    el.addEventListener('change', () => {
+      const part = el.dataset.pick.split('-');   // pk-file-3 / pk-web-2
+      const scope = part[1], i = +part[2];
+      const r = lastResult.results[i];
+      const v = +el.value;
+
+      if (scope === 'file') {
+        r.pick = v;
+        r.fileKind = kindFromPick(r.hits, r.pick);
+      } else {
+        r.webPick = v;
+        if (v >= 0) {
+          r.mark = isCancelled(r.webHits[v]) ? 'cancelled' : 'hit';
+          r.memo = pickMemo(r.webHits[v]);
+        } else {
+          r.mark = 'none';
+          r.memo = '조회 결과 중 동일 법인 없음';
+        }
+      }
+      updateCard(i);
+    });
+  });
+}
+
+function bindWebCards() {
+  const body = document.getElementById('resultBody');
+
+  bindPicks();
+
+  // 사이트 열기 — 상호명을 클립보드에 복사해 검색창에 바로 붙여넣을 수 있게 한다
+  body.querySelectorAll('button[data-weblink]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = lastResult.results[+btn.dataset.weblink];
+      const url = state.urls[r.src.id] || r.src.url || '';
+      copyToClipboard(lastResult.qName || lastResult.qBrn || '');
+      window.open(url, '_blank');
+    });
+  });
+
+  body.querySelectorAll('button[data-webpaste]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = btn.dataset.webpaste;
+      const box = body.querySelector(`[data-webbox="${i}"]`);
+      box.style.display = box.style.display === 'none' ? '' : 'none';
+      if (box.style.display === '') body.querySelector(`[data-webarea="${i}"]`).focus();
+    });
+  });
+
+  body.querySelectorAll('button[data-webcancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      body.querySelector(`[data-webbox="${btn.dataset.webcancel}"]`).style.display = 'none';
+    });
+  });
+
+  body.querySelectorAll('button[data-webapply]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.webapply;
+      const r = lastResult.results[i];
+      const area = body.querySelector(`[data-webarea="${i}"]`);
+      const text = area.value;
+
+      if (!text.trim()) { alert('붙여넣은 내용이 없습니다.'); return; }
+
+      // 표가 아닌 자료(카드·목록 형태)는 파싱하지 않고 원문만 증빙으로 보관한다
+      if (!r.src.webTable) {
+        r.evidence = text.trim();
+        if (!r.mark) {
+          const hint = normName(r.evidence).indexOf(normName(lastResult.qName)) >= 0;
+          r.memo = r.memo || (lastResult.qName && hint
+            ? '조회 결과 원문에 입력 상호명이 포함됨 — 동일 법인인지 확인 후 판정하십시오'
+            : '조회 결과 원문 저장 — 판정을 선택하십시오');
+        }
+        body.querySelector(`[data-webbox="${i}"]`).style.display = 'none';
+        area.value = '';
+        updateCard(i);
+        return;
+      }
+
+      try {
+        const parsed = ingest(parseDelimited(text, sniffDelim(text)));
+        const hits = searchIn(parsed.rows, lastResult.qName, lastResult.qBrn);
+
+        r.pasted = parsed;
+        r.webHits = hits;
+        r.webPick = autoPick(hits);
+
+        if (r.webPick != null) {
+          const h = hits[r.webPick];
+          r.mark = isCancelled(h) ? 'cancelled' : 'hit';
+          r.memo = pickMemo(h);
+        } else if (hits.length) {
+          r.mark = '';                      // 여러 법인이 걸림 → 확정 1건을 골라야 한다
+          r.memo = r.memo || `조회 결과 ${hits.length}건 — 확정 1건 선택 필요 (대표자·주소 대조)`;
+        } else {
+          r.mark = 'none';
+          r.memo = r.memo || '조회 결과 없음';
+        }
+
+        body.querySelector(`[data-webbox="${i}"]`).style.display = 'none';
+        area.value = '';
+        updateCard(i);
+      } catch (e) {
+        alert('대조 실패: ' + e.message);
+      }
+    });
+  });
+
+  body.querySelectorAll('[data-webmark]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = +el.dataset.webmark;
+      const r = lastResult.results[i];
+      r.mark = el.value;
+
+      // 담당자가 판정을 직접 바꾸면 확정 선택도 그에 맞춘다 (기록이 서로 어긋나지 않게)
+      if (r.mark === 'none') r.webPick = r.webHits.length ? -1 : null;
+      if (r.mark === 'na') r.webPick = null;
+
+      updateCard(i);
+    });
+  });
+
+  body.querySelectorAll('[data-webmemo]').forEach(el => {
+    el.addEventListener('input', () => {
+      lastResult.results[+el.dataset.webmemo].memo = el.value;
+    });
+  });
+}
+
+/* ============================================================
+   8. 결과 텍스트 내보내기 (profile 첨부용)
+   ============================================================ */
+function resultText() {
+  if (!lastResult) return '';
+  const r = lastResult;
+  const L = [];
+
+  L.push('[업종 등록현황 통합조회 결과]');
+  L.push(`조회일시   : ${r.now}`);
+  L.push(`상호명     : ${r.qName || '-'}`);
+  L.push(`사업자등록번호 : ${r.qBrn || '-'}`);
+  L.push('');
+
+  const v = verdictOf(r.results);
+  L.push(`종합판정   : ${v.text}`);
+  L.push(`             ${v.sub}`);
+  L.push('');
+
+  const hitLine = (h, mark) => `    ${mark} [${TIER_LABEL[h.tier]}] ${h.name}`
+    + ` / 상태 ${isCancelled(h) ? ('말소·폐업' + (h.cancel ? ' ' + h.cancel : '')) : (h.status || '유효')}`
+    + ` / 사업자·법인등록번호 ${h.brn || '-'} / 등록번호 ${h.regno || '-'}`
+    + ` / 업종 ${h.biztype || '-'} / 대표자 ${h.ceo || '-'} / 등록일 ${h.regdate || '-'}`
+    + (h.agency ? ` / 등록기관 ${h.agency}` : '')
+    + (h.expire ? ` / 유효기간 ${h.expire}` : '');
+
+  /* 확정 1건을 앞세우고, 함께 걸린 다른 후보는 확정에서 제외했음을 남긴다.
+     판정 근거가 어느 법인인지 profile 에서 바로 드러나게 하는 것이 목적이다. */
+  const pushHits = (hits, pick) => {
+    if (!hits.length) return;
+
+    if (pick != null && pick >= 0 && hits[pick]) {
+      L.push(hitLine(hits[pick], '▶ 확정'));
+      const rest = hits.filter((h, k) => k !== pick);
+      if (rest.length) {
+        L.push(`      확정 제외 후보 ${rest.length}건 : `
+             + rest.map(h => h.name + (h.brn ? `(${h.brn})` : '')).join(', '));
+      }
+      return;
+    }
+
+    if (pick === -1) {
+      L.push(`    ▶ 확정 : 아래 후보 ${hits.length}건 모두 동일 법인 아님 → 미해당`);
+    } else {
+      L.push(`    ▶ 확정 미선택 — 후보 ${hits.length}건, 담당자 확인 필요`);
+    }
+    hits.forEach(h => L.push(hitLine(h, '- 후보')));
+  };
+
+  r.results.forEach(x => {
+    const url = state.urls[x.src.id] || x.src.url || '-';
+    L.push(`■ ${x.src.name}  →  ${srcVerdict(x)[1]}`);
+
+    // 목록 파일 대조
+    if (x.src.file) {
+      if (x.fileKind === 'nodata') {
+        L.push(`  [목록 파일 대조] 자료 미등록 (갱신주기 ${x.src.cycle})`);
+      } else {
+        const FLBL = { hit: '해당', cancelled: '말소·폐업 이력 있음', warn: '확정 선택 필요', none: '미해당' };
+        L.push(`  [목록 파일 대조] ${FLBL[x.fileKind]}`);
+        L.push(`    자료: ${x.data.fileName} (기준연월 ${x.data.baseDate || '미지정'}, ${x.data.rows.length}건)`);
+        pushHits(x.hits, x.pick);
+      }
+    }
+
+    // 사이트 실시간 조회
+    if (x.src.web) {
+      const WLBL = {
+        hit: '해당', cancelled: '말소·폐업 이력 있음', none: '미해당',
+        na: '조회 불가 — 후속 확인 필요', '': '미확인'
+      };
+      L.push(`  [사이트 실시간 조회] ${WLBL[x.mark || '']}  (조회시점 ${r.now} 기준)`);
+      L.push(`    출처: ${url}`);
+      if (x.memo) L.push(`    확인내용: ${x.memo}`);
+      if (x.src.webTable && x.pasted) {
+        L.push(`    대조: 조회 결과 ${x.pasted.rows.length}건 중 일치 ${x.webHits.length}건`);
+        pushHits(x.webHits, x.webPick);
+      }
+      if (!x.src.webTable && x.evidence) {
+        L.push('    조회 결과 원문 (증빙, 자동 대조 없음):');
+        x.evidence.split('\n').forEach(ln => L.push('      ' + ln));
+      }
+    }
+
+    if (!x.src.file && !x.src.web) L.push('  판정 근거 없음');
+
+    // 적용 대상이면 추가로 징구해야 하는 증빙을 함께 남긴다
+    if ((x.fileKind === 'hit' || x.mark === 'hit') && x.src.docs && x.src.docs.length) {
+      L.push('  [징구 · 확인 증빙]');
+      x.src.docs.forEach(d => L.push(`    □ ${d}`));
+    }
+
+    L.push('');
+  });
+
+  return L.join('\n');
+}
+
+/* ============================================================
+   9. 초기화
+   ============================================================ */
+load();
+renderSources();
+if (!SOURCES.some(s => s.file && state.data[s.id])) {
+  document.getElementById('srcPanel').open = true;
+}
+
+document.getElementById('btnSearch').addEventListener('click', runSearch);
+
+['qName', 'qBrn'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') runSearch();
+  });
+});
+
+document.getElementById('btnCopy').addEventListener('click', () => {
+  const t = resultText();
+  if (!t) return;
+  alert(copyToClipboard(t)
+    ? '결과를 클립보드에 복사했습니다.'
+    : '클립보드 복사가 차단되었습니다. 결과를 직접 선택해 복사하십시오.');
+});
+
+document.getElementById('btnPrint').addEventListener('click', () => window.print());
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  if (!confirm('등록된 모든 자료를 삭제합니다. 계속하시겠습니까?')) return;
+  state.data = {};
+  localStorage.removeItem(LS_KEY);
+  save();
+  renderSources();
+});
+</script>
+</body>
+</html>
