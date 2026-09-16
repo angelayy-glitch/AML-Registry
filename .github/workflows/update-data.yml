@@ -1,4 +1,4 @@
-name: Data Update Test
+name: Customs Download Test
 
 "on":
   workflow_dispatch:
@@ -6,6 +6,13 @@ name: Data Update Test
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Test
-      run: echo "AML Registry Action OK"
+      - name: Test Customs page
+        run: |
+          curl -L --fail \
+            "https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=10175243&nttSnUrl=beeeabc8b7a950732cdd060eb129d716" \
+            -o customs-page.html
+
+          echo "Customs page downloaded"
+          ls -lh customs-page.html
