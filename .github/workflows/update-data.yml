@@ -1,26 +1,102 @@
-name: Customs List Check
+name: Update Customs Exchanger Data
 
 "on":
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  check:
+  update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check Customs list
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find and download latest Customs Excel
+        shell: bash
         run: |
-          curl -L \
+          curl -L --fail \
             --connect-timeout 20 \
-            --max-time 60 \
+            --max-time 90 \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
             -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
             -H "Referer: https://www.customs.go.kr/" \
             "https://www.customs.go.kr/kcs/na/ntt/selectNttList.do?mi=10316&bbsId=2062" \
             -o list.html
 
-          echo "===== EXCHANGE TEXT ====="
-          grep -n -B 5 -A 5 "환전영업자" list.html | head -100 || true
+          POST_LINE=$(grep 'class="nttInfoBtn"' list.html | grep '전국 환전영업자 등록 현황' | head -1)
 
-          echo "===== NTT LINKS ====="
-          grep -oE '.{0,150}nttSn.{0,250}' list.html | head -30 || true
+          if [ -z "$POST_LINE" ]; then
+            echo "ERROR: latest exchanger post not found"
+            exit 1
+          fi
+
+          NTT_SN=$(echo "$POST_LINE" | sed -n 's/.*data-id="\([^"]*\)".*/\1/p')
+          NTT_URL=$(echo "$POST_LINE" | sed -n 's/.*data-url="\([^"]*\)".*/\1/p')
+
+          echo "Latest nttSn: $NTT_SN"
+          echo "Latest data-url: $NTT_URL"
+
+          if [ -z "$NTT_SN" ] || [ -z "$NTT_URL" ]; then
+            echo "ERROR: post identifiers not found"
+            exit 1
+          fi
+
+          DETAIL_URL="https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=${NTT_SN}&nttSnUrl=${NTT_URL}"
+
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+            -H "Referer: https://www.customs.go.kr/" \
+            "$DETAIL_URL" \
+            -o detail.html
+
+          FILE_PATH=$(grep -oE '/common/nttFileDownload\.do\?fileKey=[^" ]+' detail.html | head -1)
+
+          if [ -z "$FILE_PATH" ]; then
+            echo "ERROR: Excel attachment link not found"
+            exit 1
+          fi
+
+          echo "Attachment found: $FILE_PATH"
+
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            --retry 3 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Referer: $DETAIL_URL" \
+            "https://www.customs.go.kr$FILE_PATH" \
+            -o "환전영업자현황_최신.xlsx"
+
+          python3 -c 'import zipfile,sys; f="환전영업자현황_최신.xlsx"; print("SUCCESS: valid XLSX" if zipfile.is_zipfile(f) else "ERROR: invalid XLSX"); sys.exit(0 if zipfile.is_zipfile(f) else 1)'
+
+          rm -f list.html detail.html
+
+      - name: Commit latest Excel
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "환전영업자현황_최신.xlsx"
+
+          if git diff --cached --quiet; then
+            echo "No change in Customs data."
+            exit 0
+          fi
+
+          git commit -m "Update latest Customs exchanger data"
+          git push
