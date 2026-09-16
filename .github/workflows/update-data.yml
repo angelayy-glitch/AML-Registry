@@ -1,121 +1,26 @@
-name: Update Customs AML Data
+name: Customs List Check
 
 "on":
   workflow_dispatch:
-  schedule:
-    - cron: "0 21 * * *"
-
-permissions:
-  contents: write
 
 jobs:
-  update:
+  check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Update Customs exchanger data
-        shell: bash
+      - name: Check Customs list
         run: |
-          python3 <<'PY'
-          import re
-          import sys
-          import time
-          import urllib.request
-          import urllib.parse
-          import zipfile
-          from pathlib import Path
-          from html import unescape
+          curl -L \
+            --connect-timeout 20 \
+            --max-time 60 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+            -H "Referer: https://www.customs.go.kr/" \
+            "https://www.customs.go.kr/kcs/na/ntt/selectNttList.do?mi=10316&bbsId=2062" \
+            -o list.html
 
-          BASE = "https://www.customs.go.kr"
-          LIST_URL = BASE + "/kcs/na/ntt/selectNttList.do?mi=10316&bbsId=2062"
+          echo "===== EXCHANGE TEXT ====="
+          grep -n -B 5 -A 5 "환전영업자" list.html | head -100 || true
 
-          headers = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36",
-              "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
-              "Referer": BASE + "/"
-          }
-
-          def get(url, attempts=3):
-              last_error = None
-
-              for attempt in range(1, attempts + 1):
-                  try:
-                      print(f"Request {attempt}/{attempts}: {url}")
-                      req = urllib.request.Request(url, headers=headers)
-                      with urllib.request.urlopen(req, timeout=25) as response:
-                          return response.read()
-                  except Exception as e:
-                      last_error = e
-                      print("Request failed:", e)
-
-                      if attempt < attempts:
-                          time.sleep(10)
-
-              raise last_error
-
-          try:
-              list_bytes = get(LIST_URL)
-              html = list_bytes.decode("utf-8", errors="ignore")
-          except Exception as e:
-              print("NOTICE: Customs site is temporarily unavailable.")
-              print("Existing exchanger file will be kept unchanged.")
-              print("Reason:", e)
-              sys.exit(0)
-
-          links = re.findall(
-              r'href=["\']([^"\']*selectNttInfo\.do[^"\']*)["\'][^>]*>(.*?)</a>',
-              html,
-              re.I | re.S
-          )
-
-          post = None
-
-          for href, raw_title in links:
-              title = re.sub(r"<[^>]+>", "", raw_title)
-              title = unescape(title)
-              title = " ".join(title.split())
-
-              if "전국 환전영업자 등록 현황" in title:
-                  post = (unescape(href), title)
-                  break
-
-          if not post:
-              print("NOTICE: No exchanger-status post was found.")
-              print("Existing exchanger file will be kept unchanged.")
-              sys.exit(0)
-
-          href, title = post
-          post_url = urllib.parse.urljoin(LIST_URL, href)
-
-          print("Latest post:", title)
-          print("Post URL:", post_url)
-
-          try:
-              post_bytes = get(post_url)
-              post_html = post_bytes.decode("utf-8", errors="ignore")
-          except Exception as e:
-              print("NOTICE: Could not open latest post.")
-              print("Existing exchanger file will be kept unchanged.")
-              print("Reason:", e)
-              sys.exit(0)
-
-          matches = re.findall(
-              r'href=["\']([^"\']*/common/nttFileDownload\.do\?fileKey=[^"\']+)["\'][^>]*title=["\']([^"\']*)["\']',
-              post_html,
-              re.I
-          )
-
-          attachment = None
-
-          for path, attachment_title in matches:
-              text = unescape(attachment_title)
-
-              if "환전영업자" in text and (".xlsx" in text.lower() or ".xls" in text.lower()):
-                  attachment = unescape(path)
-                  break
-
-          if not attachment:
-              paths
+          echo "===== NTT LINKS ====="
+          grep -oE '.{0,150}nttSn.{0,250}' list.html | head -30 || true
