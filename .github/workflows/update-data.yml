@@ -7,6 +7,5 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-
-  - name: Test
-    run: echo "AML Registry Action OK"
+    - name: Test
+      run: echo "AML Registry Action OK"
