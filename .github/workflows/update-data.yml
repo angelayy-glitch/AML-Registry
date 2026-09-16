@@ -1,1 +1,16 @@
 
+name: Data Update Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+steps:
+  - name: Test GitHub Actions
+    run: |
+      echo "AML Registry 자동 업데이트 테스트"
+      echo "GitHub Actions가 정상적으로 실행되었습니다."
+      date
