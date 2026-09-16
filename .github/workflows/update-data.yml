@@ -1,4 +1,4 @@
-name: Customs Download Test
+name: Customs Browser Test
 
 "on":
   workflow_dispatch:
@@ -8,11 +8,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test Customs page
+      - name: Test Customs page like browser
         run: |
           curl -L --fail \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+            -H "Referer: https://www.customs.go.kr/" \
             "https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=10175243&nttSnUrl=beeeabc8b7a950732cdd060eb129d716" \
             -o customs-page.html
 
-          echo "Customs page downloaded"
+          echo "Customs page downloaded successfully"
           ls -lh customs-page.html
