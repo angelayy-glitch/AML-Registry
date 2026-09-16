@@ -1,4 +1,4 @@
-name: Customs Excel Download Test
+name: Customs Latest Post Test
 
 "on":
   workflow_dispatch:
@@ -8,40 +8,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download Customs Excel
+      - name: Find latest Customs post
         run: |
-          PAGE_URL="https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=10175243&nttSnUrl=beeeabc8b7a950732cdd060eb129d716"
+          LIST_URL="https://www.customs.go.kr/kcs/na/ntt/selectNttList.do?mi=10316&bbsId=2062"
 
           curl -L --fail \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
             -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
             -H "Referer: https://www.customs.go.kr/" \
-            "$PAGE_URL" \
-            -o customs-page.html
-
-          FILE_PATH=$(grep -oE '/common/nttFileDownload\.do\?fileKey=[^" ]+' customs-page.html | head -1)
-
-          echo "Found attachment: $FILE_PATH"
-
-          test -n "$FILE_PATH"
-
-          curl -L --fail \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Referer: $PAGE_URL" \
-            "https://www.customs.go.kr$FILE_PATH" \
-            -o customs-test.xlsx
-
-          echo "===== Download result ====="
-          ls -lh customs-test.xlsx
-          file customs-test.xlsx
+            "$LIST_URL" \
+            -o customs-list.html
 
           python - <<'PY'
-          import zipfile
+          import re
+          from html import unescape
 
-          path = "customs-test.xlsx"
+          with open("customs-list.html", "r", encoding="utf-8", errors="ignore") as f:
+              html = f.read()
 
-          if not zipfile.is_zipfile(path):
-              raise SystemExit("ERROR: downloaded file is not a valid XLSX file")
+          pattern = re.compile(
+              r'href="([^"]*selectNttInfo\.do[^"]*)"[^>]*>(.*?)</a>',
+              re.I | re.S
+          )
 
-          print("SUCCESS: valid XLSX file")
+          found = None
+
+          for href, title_html in pattern.findall(html):
+              title = re.sub(r"<[^>]+>", "", title_html)
+              title = unescape(title).strip()
+
+              if "환전영업자" in title and "등록 현황" in title:
+                  found = (href, title)
+                  break
+
+          if not found:
+              raise SystemExit("ERROR: latest exchange-business post not found")
+
+          href, title = found
+
+          href = unescape(href)
+
+          if href.startswith("/"):
+              url = "https://www.customs.go.kr" + href
+          else:
+              url = "https://www.customs.go.kr/kcs/na/ntt/" + href
+
+          print("SUCCESS: latest post found")
+          print("TITLE:", title)
+          print("URL:", url)
           PY
