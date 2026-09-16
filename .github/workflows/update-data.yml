@@ -1,4 +1,4 @@
-name: Customs Attachment Test
+name: Customs Excel Download Test
 
 "on":
   workflow_dispatch:
@@ -8,17 +8,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Find Customs attachment
+      - name: Download Customs Excel
         run: |
+          PAGE_URL="https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=10175243&nttSnUrl=beeeabc8b7a950732cdd060eb129d716"
+
           curl -L --fail \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
             -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
             -H "Referer: https://www.customs.go.kr/" \
-            "https://www.customs.go.kr/kcs/na/ntt/selectNttInfo.do?mi=10316&bbsId=2062&nttSn=10175243&nttSnUrl=beeeabc8b7a950732cdd060eb129d716" \
+            "$PAGE_URL" \
             -o customs-page.html
 
-          echo "===== Attachment links ====="
-          grep -oE '/common/nttFileDownload\.do[^"'"'"' ]*' customs-page.html || true
+          FILE_PATH=$(grep -oE '/common/nttFileDownload\.do\?fileKey=[^" ]+' customs-page.html | head -1)
 
-          echo "===== XLSX references ====="
-          grep -i -n -E 'xlsx|xls|환전영업자현황' customs-page.html || true
+          echo "Found attachment: $FILE_PATH"
+
+          test -n "$FILE_PATH"
+
+          curl -L --fail \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Referer: $PAGE_URL" \
+            "https://www.customs.go.kr$FILE_PATH" \
+            -o customs-test.xlsx
+
+          echo "===== Download result ====="
+          ls -lh customs-test.xlsx
+          file customs-test.xlsx
+
+          python - <<'PY'
+          import zipfile
+
+          path = "customs-test.xlsx"
+
+          if not zipfile.is_zipfile(path):
+              raise SystemExit("ERROR: downloaded file is not a valid XLSX file")
+
+          print("SUCCESS: valid XLSX file")
+          PY
