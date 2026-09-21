@@ -21,7 +21,7 @@ jobs:
             "$PAGE_URL" \
             -o fine-page.html
 
-          FILE_PATH=$(grep -oE '/fine/cmm/file/fileDown\.do\?[^" ]+' fine-page.html | head -1 | sed 's/&amp;/\&/g')
+          FILE_PATH=$(grep -oE 'href="/fine/cmm/file/fileDown\.do\?[^"]+"' fine-page.html | head -1 | sed 's/^href="//;s/"$//;s/&amp;/\&/g')
 
           echo "Found attachment: $FILE_PATH"
 
