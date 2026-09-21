@@ -1,0 +1,27 @@
+name: FINE Connection Test
+
+"on":
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test FINE page
+        run: |
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+            -H "Referer: https://fine.fss.or.kr/" \
+            "https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1" \
+            -o fine-page.html
+
+          echo "===== FINE PAGE DOWNLOADED ====="
+          ls -lh fine-page.html
+
+          echo "===== XLS / ATTACHMENT INFO ====="
+          grep -i -n -E 'xlsx|xls|첨부|download|file' fine-page.html | head -100 || true
