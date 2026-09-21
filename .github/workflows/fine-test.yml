@@ -34,55 +34,21 @@ jobs:
             "$LIST_URL" \
             -o fine-list.html
 
-          python3 - <<'PY'
-          import re
-          import html
+                    PAGE_URL=$(grep -B 8 -A 8 "전자금융업" fine-list.html \
+            | grep -oE '/fine/bbs/B0000392/view\.do\?[^"]*nttId=[0-9]+[^"]*' \
+            | head -1 \
+            | sed 's/&amp;/\&/g')
 
-          text = open(
-              "fine-list.html",
-              "r",
-              encoding="utf-8",
-              errors="ignore"
-          ).read()
+          if [ -z "$PAGE_URL" ]; then
+            echo "ERROR: 전자금융업 게시물을 찾지 못했습니다."
+            exit 1
+          fi
 
-          pattern = re.compile(
-              r'href=["\']([^"\']*view\.do\?[^"\']*nttId=\d+[^"\']*)["\'][^>]*>(.*?)</a>',
-              re.I | re.S
-          )
+          if [[ "$PAGE_URL" == /* ]]; then
+            PAGE_URL="https://fine.fss.or.kr${PAGE_URL}"
+          fi
 
-          found = []
-
-          for url, title in pattern.findall(text):
-              clean_title = re.sub(r"<[^>]+>", " ", html.unescape(title))
-              clean_title = re.sub(r"\s+", " ", clean_title).strip()
-
-              if "전자금융업" in clean_title:
-                  found.append(html.unescape(url))
-
-          if not found:
-              raise SystemExit("ERROR: 전자금융업 게시물을 찾지 못했습니다.")
-                        url = found[0]
-
-          if url.startswith("/"):
-              url = "https://fine.fss.or.kr" + url
-
-          open("page-url.txt", "w", encoding="utf-8").write(url)
-          print("Latest FINE page:", url)
-          PY
-
-          PAGE_URL="$(cat page-url.txt)"
-
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
-            --retry 2 \
-            --retry-delay 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
-            -H "Referer: https://fine.fss.or.kr/" \
-            "$PAGE_URL" \
-            -o fine-page.html
-
+          echo "Latest FINE page: $PAGE_URL"
           python3 - <<'PY'
           from html.parser import HTMLParser
           import html
