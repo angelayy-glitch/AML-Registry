@@ -2,6 +2,8 @@ name: Update FINE Electronic Finance Data
 
 "on":
   workflow_dispatch:
+  schedule:
+    - cron: "0 21 * * *"
 
 permissions:
   contents: write
@@ -14,10 +16,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download FINE Excel
+      - name: Find latest FINE post and download Excel
         shell: bash
         run: |
-                  LIST_URL="https://fine.fss.or.kr/fine/bbs/B0000392/list.do?menuNo=900495"
+          set -e
+
+          LIST_URL="https://fine.fss.or.kr/fine/bbs/B0000392/list.do?menuNo=900495"
 
           curl -L --fail \
             --connect-timeout 20 \
@@ -30,18 +34,43 @@ jobs:
             "$LIST_URL" \
             -o fine-list.html
 
-          PAGE_URL=$(grep -B 5 -A 5 "전자금융업" fine-list.html | grep -oE '/fine/bbs/B0000392/view\.do\?[^"]*nttId=[0-9]+[^"]*' | head -1 | sed 's/&amp;/\&/g')
+          python3 - <<'PY'
+          import re
+          import html
 
-          if [ -z "$PAGE_URL" ]; then
-            echo "ERROR: 전자금융업 게시물을 찾지 못했습니다."
-            exit 1
-          fi
+          text = open(
+              "fine-list.html",
+              "r",
+              encoding="utf-8",
+              errors="ignore"
+          ).read()
 
-          if [[ "$PAGE_URL" == /* ]]; then
-            PAGE_URL="https://fine.fss.or.kr${PAGE_URL}"
-          fi
+          pattern = re.compile(
+              r'href=["\']([^"\']*view\.do\?[^"\']*nttId=\d+[^"\']*)["\'][^>]*>(.*?)</a>',
+              re.I | re.S
+          )
 
-          echo "Latest electronic finance page: $PAGE_URL"
+          found = []
+
+          for url, title in pattern.findall(text):
+              clean_title = re.sub(r"<[^>]+>", " ", html.unescape(title))
+              clean_title = re.sub(r"\s+", " ", clean_title).strip()
+
+              if "전자금융업" in clean_title:
+                  found.append(html.unescape(url))
+
+          if not found:
+              raise SystemExit("ERROR: 전자금융업 게시물을 찾지 못했습니다.")
+                        url = found[0]
+
+          if url.startswith("/"):
+              url = "https://fine.fss.or.kr" + url
+
+          open("page-url.txt", "w", encoding="utf-8").write(url)
+          print("Latest FINE page:", url)
+          PY
+
+          PAGE_URL="$(cat page-url.txt)"
 
           curl -L --fail \
             --connect-timeout 20 \
@@ -54,39 +83,64 @@ jobs:
             "$PAGE_URL" \
             -o fine-page.html
 
-          python3 -c 'from html.parser import HTMLParser; import html; \
-          class_P=type("P",(HTMLParser,),{"links":[],"handle_starttag":lambda self,tag,attrs:self.links.extend([html.unescape(v) for k,v in attrs if tag.lower()=="a" and k.lower()=="href" and v and "fileDown.do" in v])}); \
-          p=class_P(); p.feed(open("fine-page.html",encoding="utf-8",errors="ignore").read()); \
-          open("attachment.txt","w").write(p.links[0] if p.links else "")'
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          import html
 
-          FILE_PATH="$(cat attachment.txt)"
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
 
-          echo "Found attachment: ${FILE_PATH}"
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() != "a":
+                      return
 
-          if [ -z "${FILE_PATH}" ]; then
-            echo "ERROR: attachment not found"
-            exit 1
-          fi
+                  href = dict(attrs).get("href", "")
+                  href = html.unescape(href)
 
-          DOWNLOAD_URL="https://fine.fss.or.kr${FILE_PATH}"
+                  if "fileDown.do" in href:
+                      self.links.append(href)
 
-          echo "Download URL: ${DOWNLOAD_URL}"
+          parser = Parser()
+
+          with open(
+              "fine-page.html",
+              "r",
+              encoding="utf-8",
+              errors="ignore"
+          ) as f:
+              parser.feed(f.read())
+
+          if not parser.links:
+              raise SystemExit("ERROR: 첨부파일을 찾지 못했습니다.")
+
+          url = parser.links[0]
+
+          if url.startswith("/"):
+              url = "https://fine.fss.or.kr" + url
+
+          open("download-url.txt", "w", encoding="utf-8").write(url)
+          print("Attachment:", url)
+          PY
+
+          DOWNLOAD_URL="$(cat download-url.txt)"
 
           curl -L --fail \
             --connect-timeout 20 \
-            --max-time 90 \
+            --max-time 120 \
             --retry 2 \
             --retry-delay 5 \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Referer: ${PAGE_URL}" \
-            "${DOWNLOAD_URL}" \
+            -H "Referer: $PAGE_URL" \
+            "$DOWNLOAD_URL" \
             -o "전자금융업_최신.xlsx"
 
-          python3 -c 'import zipfile,sys; f="전자금융업_최신.xlsx"; ok=zipfile.is_zipfile(f); print("SUCCESS: valid XLSX file" if ok else "ERROR: invalid XLSX file"); sys.exit(0 if ok else 1)'
+          test -s "전자금융업_최신.xlsx"
 
-          rm -f fine-page.html attachment.txt
+          rm -f fine-list.html fine-page.html page-url.txt download-url.txt
 
-      - name: Commit latest Excel
+      - name: Commit latest file
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -95,9 +149,8 @@ jobs:
           git add "전자금융업_최신.xlsx"
 
           if git diff --cached --quiet; then
-            echo "No change in FINE data."
-            exit 0
+            echo "No changes"
+          else
+            git commit -m "Update latest FINE electronic finance data"
+            git push
           fi
-
-          git commit -m "Update latest FINE electronic finance data"
-          git push
