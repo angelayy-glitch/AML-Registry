@@ -9,37 +9,77 @@ jobs:
 
     steps:
       - name: Download FINE Excel
+        shell: bash
         run: |
-          PAGE_URL="https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1"
+          python3 - <<'PY'
+          import urllib.request
+          import urllib.parse
+          import html
+          import re
+          import zipfile
+          import sys
 
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
-            -H "Referer: https://fine.fss.or.kr/" \
-            "$PAGE_URL" \
-            -o fine-page.html
+          page_url = "https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1"
 
-          FILE_PATH=$(grep -oE 'href="/fine/cmm/file/fileDown\.do\?[^"]+"' fine-page.html | head -1 | sed 's/^href="//;s/"$//;s/&amp;/\&/g')
+          headers = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36",
+              "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+              "Referer": "https://fine.fss.or.kr/"
+          }
 
-          echo "Found attachment: $FILE_PATH"
+          req = urllib.request.Request(page_url, headers=headers)
+          with urllib.request.urlopen(req, timeout=90) as r:
+              raw = r.read()
 
-          if [ -z "$FILE_PATH" ]; then
-            echo "ERROR: attachment not found"
-            exit 1
-          fi
+          text = raw.decode("utf-8", errors="ignore")
+          text = html.unescape(text)
 
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Referer: $PAGE_URL" \
-            "https://fine.fss.or.kr$FILE_PATH" \
-            -o fine-test.xlsx
+          print("FINE page downloaded:", len(raw), "bytes")
 
-          echo "===== DOWNLOAD RESULT ====="
-          ls -lh fine-test.xlsx
-          file fine-test.xlsx
+          matches = re.findall(
+              r'href\s*=\s*["\']([^"\']*fileDown\.do[^"\']*)["\']',
+              text,
+              flags=re.I
+          )
 
-          python3 -c 'import zipfile,sys; f="fine-test.xlsx"; ok=zipfile.is_zipfile(f); print("SUCCESS: valid XLSX file" if ok else "ERROR: invalid XLSX file"); sys.exit(0 if ok else 1)'
+          print("Attachment links found:", len(matches))
+
+          for link in matches:
+              print("Candidate:", link)
+
+          if not matches:
+              print("ERROR: attachment link not found")
+              sys.exit(1)
+
+          file_path = matches[0]
+          download_url = urllib.parse.urljoin(
+              "https://fine.fss.or.kr/",
+              file_path
+          )
+
+          print("Downloading:", download_url)
+
+          req = urllib.request.Request(
+              download_url,
+              headers={
+                  "User-Agent": headers["User-Agent"],
+                  "Referer": page_url
+              }
+          )
+
+          with urllib.request.urlopen(req, timeout=90) as r:
+              data = r.read()
+
+          filename = "fine-test.xlsx"
+
+          with open(filename, "wb") as f:
+              f.write(data)
+
+          print("Downloaded:", len(data), "bytes")
+
+          if not zipfile.is_zipfile(filename):
+              print("ERROR: downloaded file is not a valid XLSX")
+              sys.exit(1)
+
+          print("SUCCESS: valid XLSX file")
+          PY
