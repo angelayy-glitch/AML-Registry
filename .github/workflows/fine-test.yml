@@ -17,7 +17,30 @@ jobs:
       - name: Download FINE Excel
         shell: bash
         run: |
-          PAGE_URL="https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1"
+        LIST_URL="https://fine.fss.or.kr/fine/bbs/B0000392/list.do?menuNo=900495"
+          curl -L --fail \
+  --connect-timeout 20 \
+  --max-time 90 \
+  --retry 2 \
+  --retry-delay 5 \
+  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+  -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+  -H "Referer: https://fine.fss.or.kr/" \
+  "$LIST_URL" \
+  -o fine-list.html
+
+PAGE_URL=$(python3 -c 'import re,html; s=open("fine-list.html",encoding="utf-8",errors="ignore").read(); links=re.findall(r"""href=["'\'']([^"'\'']*view\.do\?[^"'\'']*nttId=[0-9]+[^"'\'']*)["'\''][^>]*>(.*?)</a>""",s,re.I|re.S); found=[html.unescape(u) for u,t in links if "전자금융업" in re.sub("<[^>]+>"," ",html.unescape(t))]; print(found[0] if found else "")')
+
+if [ -z "$PAGE_URL" ]; then
+  echo "ERROR: 전자금융업 게시물을 찾지 못했습니다."
+  exit 1
+fi
+
+if [[ "$PAGE_URL" == /* ]]; then
+  PAGE_URL="https://fine.fss.or.kr${PAGE_URL}"
+fi
+
+echo "Latest electronic finance page: $PAGE_URL"
 
           curl -L --fail \
             --connect-timeout 20 \
