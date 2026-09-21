@@ -1,4 +1,4 @@
-name: FINE Connection Test
+name: FINE Excel Download Test
 
 "on":
   workflow_dispatch:
@@ -8,20 +8,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test FINE page
+      - name: Download FINE Excel
         run: |
+          PAGE_URL="https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1"
+
           curl -L --fail \
             --connect-timeout 20 \
             --max-time 90 \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
             -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
             -H "Referer: https://fine.fss.or.kr/" \
-            "https://fine.fss.or.kr/fine/bbs/B0000392/view.do?nttId=63573&menuNo=900495&pageIndex=1" \
+            "$PAGE_URL" \
             -o fine-page.html
 
-          echo "===== FINE PAGE DOWNLOADED ====="
-          ls -lh fine-page.html
+          FILE_PATH=$(grep -oE '/fine/cmm/file/fileDown\.do\?[^" ]+' fine-page.html | head -1 | sed 's/&amp;/\&/g')
 
-          echo "===== XLS / ATTACHMENT INFO ====="
-          grep -i -n -E 'xlsx|xls|첨부|download|file' fine-page.html | head -100 || true
+          echo "Found attachment: $FILE_PATH"
+
+          if [ -z "$FILE_PATH" ]; then
+            echo "ERROR: attachment not found"
+            exit 1
+          fi
+
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
+            -H "Referer: $PAGE_URL" \
+            "https://fine.fss.or.kr$FILE_PATH" \
+            -o fine-test.xlsx
+
+          echo "===== DOWNLOAD RESULT ====="
+          ls -lh fine-test.xlsx
+          file fine-test.xlsx
+
+          python3 -c 'import zipfile,sys; f="fine-test.xlsx"; ok=zipfile.is_zipfile(f); print("SUCCESS: valid XLSX file" if ok else "ERROR: invalid XLSX file"); sys.exit(0 if ok else 1)'
