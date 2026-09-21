@@ -2,7 +2,8 @@ name: Update Customs Exchanger Data
 
 "on":
   workflow_dispatch:
-
+  schedule:
+    - cron: "0 21 * * *"
 permissions:
   contents: write
 
