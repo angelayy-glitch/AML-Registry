@@ -13,14 +13,4 @@ jobs:
         run: |
           URL="https://fines.fss.or.kr/fines/plis/moneyLenderSearch/MoneyLenderSearch.getMoneyLenderList.do"
 
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
-            --retry 2 \
-            --retry-delay 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \            
-            -H "Referer: https://fines.fss.or.kr/" \
-            "$URL" \
-            -o moneylender-page.html
+            curl -L --fail --connect-timeout 20 --max-time 90 -A "Mozilla/5.0" -o moneylender-page.html "$URL"
