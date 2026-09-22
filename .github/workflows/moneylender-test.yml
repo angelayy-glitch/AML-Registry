@@ -28,3 +28,5 @@ jobs:
                     sed -n '289,340p' moneylender-page.html
           echo "===== SAVEEXCEL FUNCTION ====="
           sed -n '289,335p' moneylender-page.html
+            echo "===== TOTAL COUNT REFERENCES ====="
+            grep -i -n -E "전체|총|건|total|count|8,934|8934" moneylender-page.html | head -100 || true
