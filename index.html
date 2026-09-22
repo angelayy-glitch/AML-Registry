@@ -250,6 +250,137 @@
     .panel { border: none; padding: 0; }
     .wrap { max-width: none; padding: 0; }
   }
+/* ===== 검색결과 가독성 개선 ===== */
+
+/* 업종별 결과 카드 */
+.rescard {
+  margin: 18px 0;
+  padding: 20px;
+  border: 1px solid #d9e1ea;
+  border-left: 6px solid #64748b;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(0,0,0,.06);
+}
+
+/* 결과 카드 상단 */
+.rescard-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rescard-head .nm {
+  font-size: 18px;
+  font-weight: 800;
+  color: #172033;
+}
+
+/* 해당 / 미해당 등의 판정 배지 */
+.rescard-head .badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* 해당 */
+.rescard.hit {
+  border-left-color: #dc2626;
+  background: #fffafa;
+}
+
+.rescard.hit .badge {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+/* 미해당 */
+.rescard.none {
+  border-left-color: #16a34a;
+  background: #fbfffc;
+}
+
+.rescard.none .badge {
+  color: #166534;
+  background: #dcfce7;
+}
+
+/* 확인 필요 / 조회 불가 */
+.rescard.warn,
+.rescard.web {
+  border-left-color: #d97706;
+  background: #fffdf7;
+}
+
+.rescard.warn .badge,
+.rescard.web .badge {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+/* 목록 파일 정보 */
+.rescard .meta {
+  margin: 8px 0 12px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #f6f8fb;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 결과 표 */
+.rescard table.res {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.rescard table.res th {
+  padding: 10px 8px;
+  background: #eef2f7;
+  color: #334155;
+  font-weight: 800;
+  border: 1px solid #dbe2ea;
+}
+
+.rescard table.res td {
+  padding: 10px 8px;
+  border: 1px solid #e2e8f0;
+  line-height: 1.5;
+  vertical-align: top;
+}
+
+.rescard table.res tr:hover td {
+  background: #f8fafc;
+}
+
+/* 안내문 */
+.rescard .note {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: #fff8dc;
+  border: 1px solid #f2df9b;
+  line-height: 1.6;
+}
+
+/* 버튼 간격 */
+.rescard .actions {
+  margin: 10px 0;
+}
+
+.rescard .actions button {
+  margin-right: 6px;
+  margin-bottom: 5px;
+}
 </style>
 </head>
 <body>
@@ -1397,8 +1528,7 @@ function renderResult(res) {
     }
 
     if (r.src.note) html += `<div class="note">${esc(r.src.note)}</div>`;
-    html += `<div data-checks="${i}">${checksHtml(r)}</div>`;
-
+   
     html += `</div>`;
   });
 
