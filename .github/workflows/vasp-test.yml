@@ -1,4 +1,4 @@
-name: VASP Download Test
+name: VASP KoFIU Access Test
 
 "on":
   workflow_dispatch:
@@ -8,23 +8,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download KoFIU VASP file
+      - name: Test KoFIU connections
         shell: bash
         run: |
-          URL="https://www.kofiu.go.kr/cmn/file/downloadBoard.do?fileId=48CVliLYbO7K75yM8tVQpd7bkBBQFjg0LJhnDlMLDe8zv%2BG8RJVENwlRDnVdU%2B5N"
-
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
+          echo "===== TEST 1 : kofiu.go.kr ====="
+          curl -I -L \
+            --connect-timeout 30 \
+            --max-time 60 \
             -A "Mozilla/5.0" \
-            -o vasp-latest.xlsx \
-            "$URL"
+            "https://kofiu.go.kr/kor/main.do" || true
 
-          echo "===== FILE SIZE ====="
-          ls -lh vasp-latest.xlsx
+          echo "===== TEST 2 : www.kofiu.go.kr ====="
+          curl -I -L \
+            --connect-timeout 30 \
+            --max-time 60 \
+            -A "Mozilla/5.0" \
+            "https://www.kofiu.go.kr/kor/main.do" || true
 
-          echo "===== FILE TYPE ====="
-          file vasp-latest.xlsx
-
-          echo "===== FIRST BYTES ====="
-          xxd -l 16 vasp-latest.xlsx
+          echo "===== TEST FINISHED ====="
