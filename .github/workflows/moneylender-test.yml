@@ -26,3 +26,5 @@ jobs:
           echo "===== FORM / ACTION REFERENCES ====="
           grep -i -n -E "<form|action=|ajax|url:" moneylender-page.html | head -100 || true
                     sed -n '289,340p' moneylender-page.html
+          echo "===== SAVEEXCEL FUNCTION ====="
+          sed -n '289,335p' moneylender-page.html
