@@ -532,12 +532,13 @@ function decodeText(buf) {
 function readFile(file) {
   return new Promise((resolve, reject) => {
     const isExcel = /\.xlsx?$/i.test(file.name);
+    const isLenderHtml = /_lenders\.xls$/i.test(file.name);
     const fr = new FileReader();
     fr.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
 
     fr.onload = () => {
       try {
-        if (isExcel) {
+        if (isExcel && !isLenderHtml) {
           const bytes = new Uint8Array(fr.result);
 
           // DRM 컨테이너는 zip(PK) 시그니처가 아니라 DRM 헤더로 시작한다
@@ -558,6 +559,24 @@ function readFile(file) {
           resolve(rows.filter(r => r.some(v => String(v).trim() !== '')));
         } else {
           const txt = decodeText(fr.result);
+          
+          if (isLenderHtml) {
+  const doc = new DOMParser().parseFromString(txt, 'text/html');
+  const table = doc.querySelector('table');
+  if (!table) {
+    reject(new Error('대부업자 파일에서 표를 찾지 못했습니다.'));
+    return;
+  }
+
+  const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
+    Array.from(tr.querySelectorAll('th, td')).map(cell =>
+      cell.textContent.replace(/\s+/g, ' ').trim()
+    )
+  ).filter(r => r.some(v => v !== ''));
+
+  resolve(rows);
+  return;
+}
           if (/DRM|Fasoo/i.test(txt.slice(0, 200))) {
             reject(new Error('DRM으로 보호된 파일입니다. Excel에서 열어 CSV로 저장하거나 "붙여넣기로 등록"을 사용하십시오.'));
             return;
