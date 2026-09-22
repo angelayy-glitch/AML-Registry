@@ -14,3 +14,14 @@ jobs:
           URL="https://fines.fss.or.kr/fines/plis/moneyLenderSearch/MoneyLenderSearch.getMoneyLenderList.do"
 
             curl -L --fail --connect-timeout 20 --max-time 90 -A "Mozilla/5.0" -o moneylender-page.html "$URL"
+          echo "===== PAGE SIZE ====="
+          wc -c moneylender-page.html
+
+          echo "===== DOWNLOAD / EXCEL ====="
+          grep -i -n -E "xlsx|xls|excel|download|다운로드|엑셀" moneylender-page.html | head -100 || true
+
+          echo "===== MONEY LENDER REFERENCES ====="
+          grep -i -n -E "moneyLender|대부업" moneylender-page.html | head -100 || true
+
+          echo "===== FORM / ACTION REFERENCES ====="
+          grep -i -n -E "<form|action=|ajax|url:" moneylender-page.html | head -100 || true
