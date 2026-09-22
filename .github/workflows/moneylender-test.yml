@@ -1,32 +1,43 @@
-name: Money Lender Access Test
+name: Money Lender Change Watch
 
 "on":
   workflow_dispatch:
+  schedule:
+    - cron: "0 21 * * *"
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test FINES money lender page
+      - name: Check FINES money lender count
         shell: bash
         run: |
           URL="https://fines.fss.or.kr/fines/plis/moneyLenderSearch/MoneyLenderSearch.getMoneyLenderList.do"
 
-            curl -L --fail --connect-timeout 20 --max-time 90 -A "Mozilla/5.0" -o moneylender-page.html "$URL"
-          echo "===== PAGE SIZE ====="
-          wc -c moneylender-page.html
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            -A "Mozilla/5.0" \
+            -o moneylender-page.html \
+            "$URL"
 
-          echo "===== DOWNLOAD / EXCEL ====="
-          grep -i -n -E "xlsx|xls|excel|download|다운로드|엑셀" moneylender-page.html | head -100 || true
+          CURRENT=$(grep -oE '총[[:space:]]*[0-9,]+건' moneylender-page.html \
+            | head -1 \
+            | grep -oE '[0-9,]+' \
+            | tr -d ',')
 
-          echo "===== MONEY LENDER REFERENCES ====="
-          grep -i -n -E "moneyLender|대부업" moneylender-page.html | head -100 || true
+          echo "FINES 현재 전체 건수: $CURRENT"
+          echo "기준 전체 건수: 8930"
 
-          echo "===== FORM / ACTION REFERENCES ====="
-          grep -i -n -E "<form|action=|ajax|url:" moneylender-page.html | head -100 || true
-                    sed -n '289,340p' moneylender-page.html
-          echo "===== SAVEEXCEL FUNCTION ====="
-          sed -n '289,335p' moneylender-page.html
-            echo "===== TOTAL COUNT REFERENCES ====="
-            grep -i -n -E "전체|총|건|total|count|8,934|8934" moneylender-page.html | head -100 || true
+          if [ -z "$CURRENT" ]; then
+            echo "::error::FINES 전체 건수를 읽지 못했습니다."
+            exit 1
+          fi
+
+          if [ "$CURRENT" != "8930" ]; then
+            echo "::error::FINES 등록대부업체 목록이 변경되었습니다. 현재 $CURRENT건 / 기준 8930건. FINES에서 새 전체목록을 다운로드하여 교체하세요."
+            exit 1
+          fi
+
+          echo "변경 없음: $CURRENT건"
