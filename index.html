@@ -1731,11 +1731,16 @@ state.data[item.id] = {
   renderSources();
 }
 load();
-renderSources();
-loadSharedFiles();
-if (!SOURCES.some(s => s.file && state.data[s.id])) {
-  document.getElementById('srcPanel').open = true;
-}
+
+(async () => {
+  await loadSharedFiles();
+
+  renderSources();
+
+  if (!SOURCES.some(s => s.file && state.data[s.id])) {
+    document.getElementById('srcPanel').open = true;
+  }
+})();
 
 document.getElementById('btnSearch').addEventListener('click', runSearch);
 
