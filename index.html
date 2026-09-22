@@ -413,12 +413,14 @@
 <!-- ── 조회 ── -->
 <section class="panel noprint">
   <h2>고객 조회</h2>
-  <div class="query">
-    <div class="field">
-      <label for="qName">상호명 (법인명)</label>
-      <input type="text" id="qName" placeholder="예: 주식회사 ○○페이" autocomplete="off">
-    </div>
-</section>
+<div class="query">
+  <div class="field">
+    <label for="qName">상호명 (법인명)</label>
+    <input type="text" id="qName" placeholder="예: 주식회사 oo페이" autocomplete="off">
+  </div>
+
+  <button class="primary" id="btnSearch">조회</button>
+</div>
 
 <!-- ── 자료 등록 ── -->
 <section class="panel noprint">
@@ -1195,9 +1197,9 @@ function pickMemo(h) {
 
 function runSearch() {
   const qName = document.getElementById('qName').value.trim();
-  const qBrn  = document.getElementById('qBrn').value.trim();
+  const qBrn = '';
 
-  if (!qName && !qBrn) {
+  if (!qName) {
     alert('상호명을 입력하십시오.');
     return;
   }
