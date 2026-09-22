@@ -400,7 +400,7 @@
 
     <div>• 소액해외송금업자와 가상자산사업자는 현재 등록된 자료를 기준으로 조회하며, 신규 자료 확인 시 갱신합니다.</div>
 
-    <div>• 대부업자는 FINES 전체 등록목록을 기준으로 대조하며, 목록 건수의 변동 여부를 주기적으로 확인합니다.</div>
+    <div>• 대부업자는 FINE 전체 등록목록을 기준으로 대조하며, 목록 건수의 변동 여부를 주기적으로 확인합니다.</div>
 
     <div>• 등록된 목록 파일과 조회 자료는 브라우저에서 대조되며, 입력한 검색어는 외부 조회 서버로 전송하지 않습니다.</div>
 
@@ -534,7 +534,7 @@ const SOURCES = [
   },
   {
     id: 'efinance',
-    name: '전자금융업자 (FINE 등록 현황)',
+    name: '전자금융업자 (FINE)',
     cycle: '매월 1회',
     file: true,
     web: false,
@@ -545,13 +545,13 @@ const SOURCES = [
   },
     {
     id: 'lender',
-    name: '등록대부업체 (FINES)',
+    name: '등록대부업체 (FINE)',
     cycle: '수시',
     file: true,
     web: false,
     risk: true,
     url: 'https://fines.fss.or.kr/fines/plis/moneyLenderSearch/MoneyLenderSearch.getMoneyLenderList.do',
-    note: 'FINES 등록대부업체 전체 목록 자료입니다.'
+    note: 'FINE 등록대부업체 전체 목록 자료입니다.'
   }
 ];
 
@@ -1282,14 +1282,14 @@ function verdictOf(results) {
     return {
       cls: 'hit',
       text: `당연 고위험 업종 해당 — ${riskHit.map(r => r.src.name).join(', ')}`,
-      sub: '강화된 고객확인(EDD) 대상입니다. 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
+      sub: '추가정보를 징구하고, 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
     };
   }
   if (efinHit) {
     return {
       cls: 'warn',
-      text: '전자금융업자 해당 — 당연 고위험 아님, 별도 판정 필요',
-      sub: '아래 후속 확인 항목에 따라 실제소유자 확인 대상 여부와 등록증 첨부 필요 여부를 판정하십시오.' + cancelNote
+      text: '전자금융업자 해당 — 당연 고위험 아님',
+      sub: '등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
     };
   }
   if (warn.length) {
