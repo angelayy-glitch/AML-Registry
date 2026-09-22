@@ -1354,43 +1354,113 @@ function refreshVerdict() {
 
    group 을 넘기면 맨 앞에 "확정" 라디오 열이 붙어 여러 건 중 1건만 판정 근거로 고를 수 있다.
    판정은 고른 1건만으로 결정된다 (pick 값 규칙은 autoPick 주석 참조). */
-function hitsTableHtml(hits, group, pick) {
+function hitsTableHtml(hits, group, pick, srcId = '') {
   const g = group || '';
-  let t = `<table class="res">
-    <tr>${g ? '<th class="pick">확정</th>' : ''}
-        <th>판정</th><th>상태</th><th>상호명</th><th>사업자·법인등록번호</th><th>등록번호</th>
-        <th>업종</th><th>대표자</th><th>등록일</th><th>주소</th></tr>`;
+
+  function dateYMD(v) {
+    if (!v || v === '-') return '-';
+
+    const s = String(v).trim();
+
+    // 이미 YYYY-MM-DD 형식이면 그대로 사용
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+    // M/D/YY 또는 MM/DD/YY
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (m) {
+      let year = Number(m[3]);
+      if (year < 100) year += year >= 70 ? 1900 : 2000;
+
+      return `${year}-${String(m[1]).padStart(2, '0')}-${String(m[2]).padStart(2, '0')}`;
+    }
+
+    // YYYY.MM.DD / YYYY/MM/DD 등
+    m = s.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
+    if (m) {
+      return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+    }
+
+    return s;
+  }
+
+  const isExchange = srcId === 'exchange';
+  const isEfinance = srcId === 'efinance';
+
+  let t = `<table class="res"><tr>
+    ${g ? `<th class="pick">확정</th>` : ''}
+    <th>판정</th>
+    <th>상태</th>
+    <th>상호명</th>`;
+
+  if (isExchange) {
+    t += `
+      <th>영업자번호</th>
+      <th>주소</th>`;
+  } else if (isEfinance) {
+    t += `
+      <th>사업자등록번호</th>
+      <th>업종</th>
+      <th>등록일</th>`;
+  } else {
+    t += `
+      <th>사업자·법인등록번호</th>
+      <th>등록번호</th>
+      <th>업종</th>
+      <th>대표자</th>
+      <th>등록일</th>
+      <th>주소</th>`;
+  }
+
+  t += `</tr>`;
+
   hits.forEach((h, k) => {
     const st = isCancelled(h)
       ? `<span style="color:var(--hit);font-weight:700">말소·폐업${h.cancel ? ' (' + esc(h.cancel) + ')' : ''}</span>`
-      : (esc(h.status) || '<span style="color:var(--ok)">유효</span>');
+      : (esc(h.status) || `<span style="color:var(--ok)">유효</span>`);
+
     t += `<tr class="${g && pick === k ? 'picked' : ''}">
       ${g ? `<td class="pick"><input type="radio" name="${g}" value="${k}" data-pick="${g}"
-             ${pick === k ? 'checked' : ''}></td>` : ''}
+        ${pick === k ? 'checked' : ''}></td>` : ''}
       <td><span class="tier">${esc(TIER_LABEL[h.tier])}</span></td>
       <td>${st}${h.expire ? `<br><span style="font-size:11px;color:var(--muted)">유효기간 ${esc(h.expire)}</span>` : ''}</td>
-      <td>${esc(h.name)}</td>
-      <td>${esc(h.brn || '-')}</td>
-      <td>${esc(h.regno || '-')}</td>
-      <td>${esc(h.biztype || '-')}</td>
-      <td>${esc(h.ceo || '-')}</td>
-      <td>${esc(h.regdate || '-')}</td>
-      <td style="font-size:12px;color:var(--muted)">${esc(h.addr || '-')}</td>
-    </tr>`;
+      <td>${esc(h.name)}</td>`;
+
+    if (isExchange) {
+      t += `
+        <td>${esc(h.regno || '-')}</td>
+        <td style="font-size:12px;color:var(--muted)">${esc(h.addr || '-')}</td>`;
+    } else if (isEfinance) {
+      t += `
+        <td>${esc(h.regno || '-')}</td>
+        <td>${esc(h.biztype || '-')}</td>
+        <td>${esc(dateYMD(h.regdate))}</td>`;
+    } else {
+      t += `
+        <td>${esc(h.brn || '-')}</td>
+        <td>${esc(h.regno || '-')}</td>
+        <td>${esc(h.biztype || '-')}</td>
+        <td>${esc(h.ceo || '-')}</td>
+        <td>${esc(h.regdate || '-')}</td>
+        <td style="font-size:12px;color:var(--muted)">${esc(h.addr || '-')}</td>`;
+    }
+
+    t += `</tr>`;
   });
 
-  // 걸린 후보가 모두 다른 법인일 때 미해당으로 확정할 수 있는 선택지
   if (g) {
+    const colspan = isExchange ? 5 : isEfinance ? 6 : 9;
+
     t += `<tr class="${pick === -1 ? 'picked' : ''}">
       <td class="pick"><input type="radio" name="${g}" value="-1" data-pick="${g}"
         ${pick === -1 ? 'checked' : ''}></td>
-      <td colspan="9" style="font-size:12px;color:var(--muted)">
-        위 후보 모두 동일 법인이 아님 → <b>미해당</b>으로 확정</td>
+      <td colspan="${colspan}" style="font-size:12px;color:var(--muted)">
+        위 후보 모두 동일 법인이 아님 → <b>미해당</b>으로 확정
+      </td>
     </tr>`;
   }
-  return t + '</table>';
-}
 
+  return t + `</table>`;
+}
 /* 확정 1건을 고르라는 안내 — 미선택 상태에서만 띄운다 */
 function pickHintHtml(hits, pick) {
   if (pick != null || !hits.length) return '';
@@ -1425,7 +1495,7 @@ function checksHtml(r) {
 /* 목록 파일 대조 결과 영역 */
 function fileHitsHtml(r, i) {
   if (!r.hits.length) return `<div class="empty">일치하는 등록 내역이 없습니다.</div>`;
-  return hitsTableHtml(r.hits, `pk-file-${i}`, r.pick) + pickHintHtml(r.hits, r.pick);
+  return hitsTableHtml(r.hits, `pk-file-${i}`, r.pick, r.src.id) + pickHintHtml(r.hits, r.pick);
 }
 
 /* 사이트 조회 결과 영역 — 표 붙여넣기 대조 결과 또는 저장된 원문 증빙 */
