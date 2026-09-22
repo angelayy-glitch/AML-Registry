@@ -20,4 +20,7 @@ jobs:
             --retry-delay 5 \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
             -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
+            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \            
+            -H "Referer: https://fines.fss.or.kr/" \
+            "$URL" \
+            -o moneylender-page.html
