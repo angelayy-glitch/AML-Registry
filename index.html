@@ -777,8 +777,7 @@ const exactHeaderMap = {
   // 환전영업자
   '영업자번호': 'regno',
 
-  // 가상자산사업자
-  '사업자등록번호': 'brn',
+
 
   // 전자금융업자
   '사업자등록번호': 'regno',
@@ -850,11 +849,15 @@ function ingest(rows) {
   if (det.idx < 0) throw new Error('상호명 컬럼을 찾지 못했습니다. 헤더 행이 포함된 파일인지 확인하십시오.');
 
   const headers = rows[det.idx].map(v => String(v || '').trim());
+  const vaspBrnIdx = headers.findIndex(
+  h => h.replace(/\s/g, '') === '사업자등록번호'
+);
   const out = [];
 
   for (let i = det.idx + 1; i < rows.length; i++) {
     const r = rows[i];
     const get = f => (det.map[f] !== undefined ? String(r[det.map[f]] || '').trim() : '');
+    const getVaspBrn = () => vaspBrnIdx >= 0 ? String(r[vaspBrnIdx] || '').trim() : '';
     const name = get('name');
     if (!name) continue;
 
@@ -873,7 +876,7 @@ function ingest(rows) {
     out.push({
       name,
       corpno: get('corpno'), licenseno: get('licenseno'), bizcontent: get('bizcontent'), roadaddr: get('roadaddr'),
-      brn: get('brn'), regno: get('regno'), ceo: get('ceo'),
+      brn: getVaspBrn() || get('brn'), regno: get('regno'), ceo: get('ceo'),
       regdate: get('regdate'), biztype,
       addr: get('addr'), expire: get('expire'),
       status: get('status'), cancel: get('cancel'),
