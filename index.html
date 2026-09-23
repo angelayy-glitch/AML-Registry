@@ -1384,11 +1384,24 @@ function verdictHtml(res) {
       <span>${esc(v.text)}</span>
     </div>
     <div class="meta" style="margin-bottom:14px">
-      조회일시 ${esc(res.now)} ·
-      상호명 <b>${esc(res.qName || '-')}</b> ·
-       <b>${esc(res.qBrn || '-')}</b><br>
-      ${esc(v.sub)}
-    </div>`;
+  조회일시 ${esc(res.now)} ·
+  상호명 <b>${esc(res.qName || '-')}</b> ·
+  <b>${esc(res.qBrn || '-')}</b>
+
+  <div style="
+    margin-top:12px;
+    padding:14px 16px;
+    border:2px solid #e0a52b;
+    border-radius:10px;
+    background:#fff8e6;
+    color:#6b4700;
+    font-size:15px;
+    font-weight:700;
+    line-height:1.7;
+  ">
+    ${esc(v.sub)}
+  </div>
+</div>`;
 }
 
 function refreshVerdict() {
