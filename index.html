@@ -765,7 +765,7 @@ function detectHeader(rows) {
       for (let c = 0; c < cells.length; c++) {
         if (map[field] !== undefined) break;
         if (!cells[c] || used.has(c)) continue;
-        if (keys.some(k => cells[c].includes(k.replace(/\s/g, '')))) {
+        if (keys.some(k => cells[c] === k.replace(/\s/g, ''))) {
           map[field] = c;
           used.add(c);
           score++;
