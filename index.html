@@ -1425,8 +1425,9 @@ function hitsTableHtml(hits, group, pick, srcId = '') {
   }
 
   const isExchange = srcId === 'exchange';
-  const isEfinance = srcId === 'efinance';
-  const isLender = srcId === 'lender';
+const isEfinance = srcId === 'efinance';
+const isLender = srcId === 'lender';
+const isVasp = srcId === 'vasp';
 
   let t = `<table class="res"><tr>
     ${g ? `<th class="pick">확정</th>` : ''}
@@ -1450,15 +1451,20 @@ function hitsTableHtml(hits, group, pick, srcId = '') {
     <th>사업내용</th>
     <th>대표자</th>
     <th>소재지(도로명)</th>`;
+} else if (isVasp) {
+  t += `
+    <th>사업자등록번호</th>
+    <th>대표자</th>
+    <th>주소</th>`;
 } else {
-    t += `
-      <th>사업자·법인등록번호</th>
-      <th>등록번호</th>
-      <th>업종</th>
-      <th>대표자</th>
-      <th>등록일</th>
-      <th>주소</th>`;
-  }
+  t += `
+    <th>사업자·법인등록번호</th>
+    <th>등록번호</th>
+    <th>업종</th>
+    <th>대표자</th>
+    <th>등록일</th>
+    <th>주소</th>`;
+}
 
   t += `</tr>`;
 
@@ -1490,6 +1496,11 @@ function hitsTableHtml(hits, group, pick, srcId = '') {
     <td>${esc(h.bizcontent || '-')}</td>
     <td>${esc(h.ceo || '-')}</td>
     <td style="font-size:12px;color:var(--muted)">${esc(h.roadaddr || '-')}</td>`;
+} else if (isVasp) {
+  t += `
+    <td>${esc(h.brn || '-')}</td>
+    <td>${esc(h.ceo || '-')}</td>
+    <td style="font-size:12px;color:var(--muted)">${esc(h.addr || '-')}</td>`;
 } else {
       t += `
         <td>${esc(h.brn || '-')}</td>
