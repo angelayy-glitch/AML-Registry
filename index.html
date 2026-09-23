@@ -772,8 +772,15 @@ function detectHeader(rows) {
         }
       }
     }
-// FINES 등록대부업체 전용 헤더 보정
+// 파일별 정확한 헤더명 우선 보정
 const exactHeaderMap = {
+  // 환전영업자
+  '영업자번호': 'regno',
+
+  // 전자금융업자
+  '사업자등록번호': 'regno',
+
+  // FINES 등록대부업체
   '법인등록번호': 'corpno',
   '등록증번호': 'licenseno',
   '사업내용': 'bizcontent',
@@ -789,6 +796,11 @@ for (let c = 0; c < cells.length; c++) {
     if (map[key] === c && key !== field) {
       delete map[key];
     }
+  }
+
+  // 이 필드가 앞에서 다른 열을 잘못 잡았다면 기존 연결 해제
+  if (map[field] !== undefined && map[field] !== c) {
+    used.delete(map[field]);
   }
 
   map[field] = c;
