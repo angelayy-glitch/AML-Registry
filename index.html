@@ -765,14 +765,35 @@ function detectHeader(rows) {
       for (let c = 0; c < cells.length; c++) {
         if (map[field] !== undefined) break;
         if (!cells[c] || used.has(c)) continue;
-        if (keys.some(k => cells[c] === k.replace(/\s/g, ''))) {
+        if (keys.some(k => cells[c].includes(k.replace(/\s/g, '')))) {
           map[field] = c;
           used.add(c);
           score++;
         }
       }
     }
+// FINES 등록대부업체 전용 헤더 보정
+const exactHeaderMap = {
+  '법인등록번호': 'corpno',
+  '등록증번호': 'licenseno',
+  '사업내용': 'bizcontent',
+  '소재지(도로명)': 'roadaddr'
+};
 
+for (let c = 0; c < cells.length; c++) {
+  const field = exactHeaderMap[cells[c]];
+  if (!field) continue;
+
+  // 다른 필드가 이 열을 잘못 가져갔다면 해제
+  for (const key of Object.keys(map)) {
+    if (map[key] === c && key !== field) {
+      delete map[key];
+    }
+  }
+
+  map[field] = c;
+  used.add(c);
+}
     // 남은 컬럼 중 업종명으로 보이는 것들을 업종 플래그 컬럼으로 수집
     const flags = [];
     for (let c = 0; c < cells.length; c++) {
