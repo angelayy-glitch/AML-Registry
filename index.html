@@ -1412,7 +1412,7 @@ function verdictHtml(res) {
     `${esc(name)} <span class="badge hit">당연 고위험</span>`
   ).join(' · ') : ''}
   ${v.efinHit
-    ? `${v.riskNames && v.riskNames.length ? ' · ' : ' - '}전자금융업자 <span class="badge warn">당연 고위험 아님</span>`
+    ? `${v.riskNames && v.riskNames.length ? ' · ' : ' '}전자금융업자 <span class="badge warn">당연 고위험 아님</span>`
     : ''}
 </span>
       </div>
