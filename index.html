@@ -2086,7 +2086,61 @@ document.getElementById('btnCopy').addEventListener('click', () => {
     : '클립보드 복사가 차단되었습니다. 결과를 직접 선택해 복사하십시오.');
 });
 
-document.getElementById('btnPrint').addEventListener('click', () => window.print());
+document.getElementById('btnPrint').addEventListener('click', () => {
+  const panel = document.getElementById('resultPanel');
+
+  if (!panel || panel.style.display === 'none') {
+    alert('먼저 조회해 주세요.');
+    return;
+  }
+
+  const printWindow = window.open('', '_blank', 'width=1200,height=900');
+
+  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map(el => el.outerHTML)
+    .join('\n');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+      <meta charset="UTF-8">
+      <title>AML 조회 결과</title>
+      ${styles}
+      <style>
+        body {
+          background: #fff !important;
+          padding: 20px;
+        }
+
+        #resultPanel {
+          display: block !important;
+        }
+
+        .noprint {
+          display: none !important;
+        }
+
+        @media print {
+          #resultPanel {
+            display: block !important;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      ${panel.outerHTML}
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 500);
+});
 
 document.getElementById('btnClear').addEventListener('click', () => {
   if (!confirm('등록된 모든 자료를 삭제합니다. 계속하시겠습니까?')) return;
