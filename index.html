@@ -244,47 +244,15 @@
 
   .foot { color: var(--muted); font-size: 12px; margin-top: 22px; }
 
-  @media print {
-  body {
-    background: #fff !important;
-    color: #111 !important;
-  }
-
+@media print {
   .noprint {
     display: none !important;
   }
 
-  .wrap {
-    max-width: none !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+  body {
+    background: #fff;
   }
-
-  .panel {
-    border: none !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-  }
-
-  #resultPanel {
-    display: block !important;
-  }
-
-  .rescard {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    box-shadow: none !important;
-  }
-
-  table {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+}
   }
 }
 /* ===== 검색결과 가독성 개선 ===== */
@@ -2118,58 +2086,7 @@ document.getElementById('btnCopy').addEventListener('click', () => {
     : '클립보드 복사가 차단되었습니다. 결과를 직접 선택해 복사하십시오.');
 });
 
-document.getElementById('btnPrint').addEventListener('click', () => {
-  const resultBody = document.getElementById('resultBody');
-  if (!resultBody || !resultBody.innerHTML.trim()) {
-    alert('먼저 조회해 주세요.');
-    return;
-  }
-
-  const printWindow = window.open('', '_blank', 'width=1000,height=800');
-
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="ko">
-    <head>
-      <meta charset="UTF-8">
-      <title>AML 조회 결과</title>
-      <style>
-        body {
-          font-family: Arial, "Noto Sans KR", sans-serif;
-          padding: 30px;
-          color: #222;
-          background: #fff;
-        }
-        * {
-          box-sizing: border-box;
-        }
-        .actions, .noprint, button {
-          display: none !important;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-        }
-      </style>
-    </head>
-    <body>
-      <h2>조회 결과</h2>
-      ${resultBody.innerHTML}
-    </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-
-  printWindow.onload = () => {
-    printWindow.focus();
-    printWindow.print();
-  };
-});
+document.getElementById('btnPrint').addEventListener('click', () => window.print());
 
 document.getElementById('btnClear').addEventListener('click', () => {
   if (!confirm('등록된 모든 자료를 삭제합니다. 계속하시겠습니까?')) return;
