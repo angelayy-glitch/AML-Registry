@@ -2102,7 +2102,10 @@ load();
 document.getElementById('btnSearch').addEventListener('click', runSearch);
 
 ['qName', 'qBrn'].forEach(id => {
-  document.getElementById(id).addEventListener('keydown', e => {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.addEventListener('keydown', e => {
     if (e.key === 'Enter') runSearch();
   });
 });
