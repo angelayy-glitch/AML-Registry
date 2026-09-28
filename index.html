@@ -1324,7 +1324,7 @@ function verdictOf(results) {
   if (riskHit.length) {
   return {
     cls: 'hit',
-    text: `당연 고위험 업종 ${riskHit.length}건 해당 — ${riskHit.map(r => r.src.name).join(' · ')}`,
+    text: `당연 고위험 업종 ${riskHit.length}건 해당 - ${riskHit.map(r => r.src.name).join(' · ')}${efinHit ? ' / 전자금융업자 해당 - 당연 고위험 아님' : ''}`,
     sub: '추가정보를 징구하고, 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
   };
 }
