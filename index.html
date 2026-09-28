@@ -1331,12 +1331,14 @@ function verdictOf(results) {
   };
 }
   if (efinHit) {
-    return {
-      cls: 'warn',
-      text: '전자금융업자 해당 — 당연 고위험 아님',
-      sub: '등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
-    };
-  }
+  return {
+    cls: 'warn',
+    text: '조회 결과 1건 해당',
+    riskNames: [],
+    efinHit: true,
+    sub: '등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
+  };
+}
   if (warn.length) {
     return {
       cls: 'warn',
