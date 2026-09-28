@@ -1382,7 +1382,7 @@ function copyToClipboard(text) {
 function verdictHtml(res) {
   const v = verdictOf(res.results);
 
-  return `
+    return `
     <div style="
       padding:16px 18px;
       border:1px solid #e2e8f0;
@@ -1390,13 +1390,14 @@ function verdictHtml(res) {
       background:#ffffff;
       margin-bottom:18px;
     ">
-      <div class="verdict ${v.cls}" style="margin-bottom:10px">
-        <span>${esc(v.text)}</span>
-      </div>
 
       <div class="meta" style="margin-bottom:12px">
         조회일시 ${esc(res.now)} ·
         상호명 <b>${esc(res.qName || '-')}</b>
+      </div>
+
+      <div class="verdict ${v.cls}" style="margin-bottom:14px">
+        <span>${esc(v.text)}</span>
       </div>
 
       <div style="
@@ -1407,8 +1408,9 @@ function verdictHtml(res) {
         font-weight:700;
         line-height:1.7;
       ">
-        ${esc(v.sub)}
+        👉 ${esc(v.sub)}
       </div>
+
     </div>`;
 }
 
