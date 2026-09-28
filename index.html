@@ -1324,7 +1324,9 @@ function verdictOf(results) {
   if (riskHit.length) {
   return {
     cls: 'hit',
-    text: `조회 결과 ${riskHit.length + (efinHit ? 1 : 0)}건 해당 - ${riskHit.map(r => r.src.name).concat(efinHit ? ['전자금융업자 (당연 고위험 아님)'] : []).join(' · ')}`,
+    text: `조회 결과 ${riskHit.length + (efinHit ? 1 : 0)}건 해당`,
+    riskNames: riskHit.map(r => r.src.name.replace(/\s*\([^)]*\)\s*/g, '').trim()),
+    efinHit: efinHit,
     sub: '추가정보를 징구하고, 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
   };
 }
@@ -1397,7 +1399,15 @@ function verdictHtml(res) {
       </div>
 
       <div class="verdict ${v.cls}" style="margin-bottom:14px">
-        <span>${esc(v.text)}</span>
+        <span>
+  ${esc(v.text)}
+  ${v.riskNames ? ' - ' + v.riskNames.map(name =>
+    `${esc(name)} <span class="badge hit">당연 고위험</span>`
+  ).join(' · ') : ''}
+  ${v.efinHit
+    ? `${v.riskNames && v.riskNames.length ? ' · ' : ' - '}전자금융업자 <span class="badge warn">당연 고위험 아님</span>`
+    : ''}
+</span>
       </div>
 
       <div style="
