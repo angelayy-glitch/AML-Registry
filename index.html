@@ -260,7 +260,21 @@
     padding: 0 !important;
     margin: 0 !important;
   }
+body.print-result-only > * {
+  display: none !important;
+}
 
+body.print-result-only .wrap {
+  display: block !important;
+}
+
+body.print-result-only .wrap > * {
+  display: none !important;
+}
+
+body.print-result-only #resultPanel {
+  display: block !important;
+}
   .panel {
     border: none !important;
     padding: 0 !important;
@@ -2118,7 +2132,18 @@ document.getElementById('btnCopy').addEventListener('click', () => {
     : '클립보드 복사가 차단되었습니다. 결과를 직접 선택해 복사하십시오.');
 });
 
-document.getElementById('btnPrint').addEventListener('click', () => window.print());
+document.getElementById('btnPrint').addEventListener('click', () => {
+  const panel = document.getElementById('resultPanel');
+  if (!panel) return;
+
+  document.body.classList.add('print-result-only');
+
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('print-result-only');
+  }, 500);
+});
 
 document.getElementById('btnClear').addEventListener('click', () => {
   if (!confirm('등록된 모든 자료를 삭제합니다. 계속하시겠습니까?')) return;
