@@ -1398,7 +1398,12 @@ function verdictHtml(res) {
         상호명 <b>${esc(res.qName || '-')}</b>
       </div>
 
-      <div class="verdict ${v.cls}" style="margin-bottom:14px">
+      <div style="
+  margin-bottom:14px;
+  padding:10px 0;
+  font-weight:700;
+  color:#b42318;
+">
         <span>
   ${esc(v.text)}
   ${v.riskNames ? ' - ' + v.riskNames.map(name =>
