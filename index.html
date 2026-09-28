@@ -1299,7 +1299,9 @@ const PENDING_LABELS = ['사이트 조회 필요', '조회 불가', '자료 미�
 function verdictOf(results) {
   const V = results.map(r => ({ r, label: srcVerdict(r)[1] }));
 
-  const riskHit   = V.filter(x => x.r.src.risk && x.label === '해당').map(x => x.r);
+  const riskHit = results.filter(r =>
+  r.src.risk && (r.fileKind === 'hit' || r.mark === 'hit')
+);
   const efinHit   = V.some(x => x.r.src.id === 'efinance' && x.label === '해당');
   const cancelled = V.filter(x => x.label === '말소 · 폐업').map(x => x.r);
   const warn      = V.filter(x => x.label === '확정 선택 필요').map(x => x.r);
