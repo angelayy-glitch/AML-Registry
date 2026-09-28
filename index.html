@@ -1324,7 +1324,7 @@ function verdictOf(results) {
   if (riskHit.length) {
   return {
     cls: 'hit',
-    text: `당연 고위험 업종 ${riskHit.length}건 해당 - ${riskHit.map(r => r.src.name).join(' · ')}${efinHit ? ' / 전자금융업자 해당 - 당연 고위험 아님' : ''}`,
+    text: `조회 결과 ${riskHit.length + (efinHit ? 1 : 0)}건 해당 - ${riskHit.map(r => r.src.name).concat(efinHit ? ['전자금융업자 (당연 고위험 아님)'] : []).join(' · ')}`,
     sub: '추가정보를 징구하고, 등록증을 조회해 KYC profile에 첨부하십시오.' + cancelNote
   };
 }
@@ -1381,29 +1381,35 @@ function copyToClipboard(text) {
 /* 종합 판정 블록만 따로 그려, 실시간 조회 결과를 기록할 때 입력 중인 값을 잃지 않고 갱신한다 */
 function verdictHtml(res) {
   const v = verdictOf(res.results);
-  return `
-    <div class="verdict ${v.cls}">
-      <span>${esc(v.text)}</span>
-    </div>
-    <div class="meta" style="margin-bottom:14px">
-  조회일시 ${esc(res.now)} ·
-  상호명 <b>${esc(res.qName || '-')}</b> ·
-  <b>${esc(res.qBrn || '-')}</b>
 
-  <div style="
-    margin-top:12px;
-    padding:14px 16px;
-    border:2px solid #e0a52b;
-    border-radius:10px;
-    background:#fff8e6;
-    color:#6b4700;
-    font-size:15px;
-    font-weight:700;
-    line-height:1.7;
-  ">
-    ${esc(v.sub)}
-  </div>
-</div>`;
+  return `
+    <div style="
+      padding:16px 18px;
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      background:#ffffff;
+      margin-bottom:18px;
+    ">
+      <div class="verdict ${v.cls}" style="margin-bottom:10px">
+        <span>${esc(v.text)}</span>
+      </div>
+
+      <div class="meta" style="margin-bottom:12px">
+        조회일시 ${esc(res.now)} ·
+        상호명 <b>${esc(res.qName || '-')}</b>
+      </div>
+
+      <div style="
+        padding-top:12px;
+        border-top:1px solid #e2e8f0;
+        color:#6b4700;
+        font-size:15px;
+        font-weight:700;
+        line-height:1.7;
+      ">
+        ${esc(v.sub)}
+      </div>
+    </div>`;
 }
 
 function refreshVerdict() {
