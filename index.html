@@ -260,21 +260,7 @@
     padding: 0 !important;
     margin: 0 !important;
   }
-body.print-result-only > * {
-  display: none !important;
-}
 
-body.print-result-only .wrap {
-  display: block !important;
-}
-
-body.print-result-only .wrap > * {
-  display: none !important;
-}
-
-body.print-result-only #resultPanel {
-  display: block !important;
-}
   .panel {
     border: none !important;
     padding: 0 !important;
@@ -2133,16 +2119,56 @@ document.getElementById('btnCopy').addEventListener('click', () => {
 });
 
 document.getElementById('btnPrint').addEventListener('click', () => {
-  const panel = document.getElementById('resultPanel');
-  if (!panel) return;
+  const resultBody = document.getElementById('resultBody');
+  if (!resultBody || !resultBody.innerHTML.trim()) {
+    alert('먼저 조회해 주세요.');
+    return;
+  }
 
-  document.body.classList.add('print-result-only');
+  const printWindow = window.open('', '_blank', 'width=1000,height=800');
 
-  window.print();
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+      <meta charset="UTF-8">
+      <title>AML 조회 결과</title>
+      <style>
+        body {
+          font-family: Arial, "Noto Sans KR", sans-serif;
+          padding: 30px;
+          color: #222;
+          background: #fff;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        .actions, .noprint, button {
+          display: none !important;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+      </style>
+    </head>
+    <body>
+      <h2>조회 결과</h2>
+      ${resultBody.innerHTML}
+    </body>
+    </html>
+  `);
 
-  setTimeout(() => {
-    document.body.classList.remove('print-result-only');
-  }, 500);
+  printWindow.document.close();
+
+  printWindow.onload = () => {
+    printWindow.focus();
+    printWindow.print();
+  };
 });
 
 document.getElementById('btnClear').addEventListener('click', () => {
