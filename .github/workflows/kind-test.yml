@@ -1,0 +1,31 @@
+name: KRX KIND Download Test
+
+"on":
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download KRX KIND listed companies
+        shell: bash
+        run: |
+          URL="https://kind.krx.co.kr/corpgeneral/corpList.do?method=download"
+
+          curl -L --fail \
+            --connect-timeout 20 \
+            --max-time 90 \
+            -A "Mozilla/5.0" \
+            -o kind-listed.xls \
+            "$URL"
+
+          echo "===== FILE INFO ====="
+          ls -lh kind-listed.xls
+          file kind-listed.xls
+
+          echo "===== FIRST LINES ====="
+          head -20 kind-listed.xls
+
+          echo "===== COMPANY CHECK ====="
+          grep -o "삼성전자" kind-listed.xls | head -1 || true
