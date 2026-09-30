@@ -479,7 +479,53 @@
    전자금융업은 등록 여부만 판정하며 말소 현황은 대조 대상에 포함하지 않는다.
    유효기간은 어느 자료에서도 판정 근거로 쓰지 않고 기록·표시만 한다.
    ============================================================ */
-const SOURCES = [
+let kindListedHtml = '';
+
+async function loadKindListed() {
+  try {
+    const response = await fetch('./kind-listed.html', {
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error('KIND 파일을 불러오지 못했습니다.');
+    }
+
+    kindListedHtml = await response.text();
+    console.log('KRX KIND 상장법인 자료 로딩 완료');
+  } catch (err) {
+    console.warn('KRX KIND 자료 로딩 실패:', err);
+    kindListedHtml = '';
+  }
+}
+
+function isKindListed(companyName) {
+  const name = String(companyName || '').trim();
+  if (!name || !kindListedHtml) return false;
+
+  const normalized = name
+    .replace(/\(주\)|㈜|주식회사/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+
+  const doc = new DOMParser().parseFromString(kindListedHtml, 'text/html');
+  const rows = Array.from(doc.querySelectorAll('tr'));
+
+  return rows.some(tr => {
+    const cells = Array.from(tr.querySelectorAll('td'));
+    if (!cells.length) return false;
+
+    return cells.some(td => {
+      const text = td.textContent
+        .replace(/\(주\)|㈜|주식회사/g, '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+
+      return text === normalized;
+    });
+  });
+}
+  const SOURCES = [
   {
     id: 'exchange',
     name: '환전영업자 (관세청)',
@@ -2055,11 +2101,48 @@ state.data[item.id] = {
 
   renderSources();
 }
+  async function loadKindListed() {
+  try {
+    const response = await fetch('./kind-listed.html', { cache: 'no-store' });
+
+    if (!response.ok) {
+      console.warn('KRX 상장회사 파일을 불러오지 못했습니다.');
+      return;
+    }
+
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const rows = Array.from(doc.querySelectorAll('tr'));
+    const listed = [];
+
+    for (const tr of rows) {
+      const cells = Array.from(tr.querySelectorAll('td'))
+        .map(td => td.textContent.replace(/\s+/g, ' ').trim());
+
+      if (!cells.length) continue;
+
+      const companyName = cells[0] || '';
+      if (!companyName) continue;
+
+      listed.push({
+        name: companyName,
+        cells: cells
+      });
+    }
+
+    window.kindListedCompanies = listed;
+
+    console.log('KRX 상장회사 로드 완료:', listed.length, '건');
+  } catch (err) {
+    console.error('KRX 상장회사 로드 오류:', err);
+  }
+}
 load();
 
 (async () => {
   await loadSharedFiles();
-
+  await loadKindListed();
   renderSources();
 
   if (!SOURCES.some(s => s.file && state.data[s.id])) {
