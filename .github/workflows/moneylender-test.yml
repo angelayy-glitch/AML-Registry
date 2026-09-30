@@ -41,3 +41,5 @@ jobs:
           fi
 
           echo "변경 없음: $CURRENT건"
+          echo "===== SAVEEXCEL FUNCTION ====="
+awk 'NR>=285 && NR<=335 {print NR ":" $0}' moneylender-page.html
