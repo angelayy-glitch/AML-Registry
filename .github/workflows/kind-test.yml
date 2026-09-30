@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download KRX KIND listed companies
+      - name: Download and check KRX KIND listed companies
         shell: bash
         run: |
           URL="https://kind.krx.co.kr/corpgeneral/corpList.do?method=download"
@@ -24,8 +24,16 @@ jobs:
           ls -lh kind-listed.xls
           file kind-listed.xls
 
-          echo "===== FIRST LINES ====="
-          head -20 kind-listed.xls
+          echo "===== CONVERT TO UTF-8 ====="
+          iconv -f EUC-KR -t UTF-8 kind-listed.xls > kind-listed-utf8.html
 
           echo "===== COMPANY CHECK ====="
-          grep -o "삼성전자" kind-listed.xls | head -1 || true
+          if grep -q "삼성전자" kind-listed-utf8.html; then
+            echo "성공: 삼성전자를 찾았습니다."
+          else
+            echo "::error::삼성전자를 찾지 못했습니다."
+            exit 1
+          fi
+
+          echo "===== SAMPLE ====="
+          grep -n "삼성전자" kind-listed-utf8.html | head -3
