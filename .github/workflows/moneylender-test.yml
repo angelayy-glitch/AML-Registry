@@ -28,15 +28,15 @@ jobs:
             | tr -d ',')
 
           echo "FINES 현재 전체 건수: $CURRENT"
-          echo "기준 전체 건수: 8930"
+          echo "기준 전체 건수: 8901"
 
           if [ -z "$CURRENT" ]; then
             echo "::error::FINES 전체 건수를 읽지 못했습니다."
             exit 1
           fi
 
-          if [ "$CURRENT" != "8930" ]; then
-            echo "::error::FINES 등록대부업체 목록이 변경되었습니다. 현재 $CURRENT건 / 기준 8930건. FINES에서 새 전체목록을 다운로드하여 교체하세요."
+          if [ "$CURRENT" != "8901" ]; then
+            echo "::error::FINES 등록대부업체 목록이 변경되었습니다. 현재 $CURRENT건 / 기준 8901건. FINES에서 새 전체목록을 다운로드하여 교체하세요."
             exit 1
           fi
 
