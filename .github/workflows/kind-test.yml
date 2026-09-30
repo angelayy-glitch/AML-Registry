@@ -1,39 +1,58 @@
-name: KRX KIND Download Test
+name: Update KRX KIND Listed Companies
 
 "on":
   workflow_dispatch:
+  schedule:
+    - cron: "10 21 * * *"
+
+permissions:
+  contents: write
 
 jobs:
-  test:
+  update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download and check KRX KIND listed companies
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download KRX KIND listed companies
         shell: bash
         run: |
+          set -e
+
           URL="https://kind.krx.co.kr/corpgeneral/corpList.do?method=download"
 
           curl -L --fail \
             --connect-timeout 20 \
             --max-time 90 \
             -A "Mozilla/5.0" \
-            -o kind-listed.xls \
+            -o kind-temp.xls \
             "$URL"
 
-          echo "===== FILE INFO ====="
-          ls -lh kind-listed.xls
-          file kind-listed.xls
+          iconv -f EUC-KR -t UTF-8 kind-temp.xls > kind-listed.html
 
-          echo "===== CONVERT TO UTF-8 ====="
-          iconv -f EUC-KR -t UTF-8 kind-listed.xls > kind-listed-utf8.html
-
-          echo "===== COMPANY CHECK ====="
-          if grep -q "삼성전자" kind-listed-utf8.html; then
-            echo "성공: 삼성전자를 찾았습니다."
-          else
-            echo "::error::삼성전자를 찾지 못했습니다."
+          if ! grep -q "삼성전자" kind-listed.html; then
+            echo "::error::KIND 상장법인 자료를 정상적으로 읽지 못했습니다."
             exit 1
           fi
 
-          echo "===== SAMPLE ====="
-          grep -n "삼성전자" kind-listed-utf8.html | head -3
+          rm kind-temp.xls
+
+          echo "KIND 상장법인 자료 확인 성공"
+
+      - name: Commit updated KIND data
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add kind-listed.html
+
+          if git diff --cached --quiet; then
+            echo "변경된 KIND 자료가 없습니다."
+            exit 0
+          fi
+
+          git commit -m "Update KRX KIND listed companies"
+          git push
