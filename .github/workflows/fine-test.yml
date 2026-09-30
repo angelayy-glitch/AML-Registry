@@ -1,132 +1,39 @@
-name: Update FINE Electronic Finance Data
+name: KRX KIND Download Test
 
 "on":
   workflow_dispatch:
-  schedule:
-    - cron: "0 21 * * *"
-
-permissions:
-  contents: write
 
 jobs:
-  update:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Find latest FINE post and download Excel
+      - name: Download and check KRX KIND listed companies
         shell: bash
         run: |
-          set -e
-
-          LIST_URL="https://fine.fss.or.kr/fine/bbs/B0000392/list.do?menuNo=900495"
+          URL="https://kind.krx.co.kr/corpgeneral/corpList.do?method=download"
 
           curl -L --fail \
             --connect-timeout 20 \
             --max-time 90 \
-            --retry 2 \
-            --retry-delay 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
-            -H "Referer: https://fine.fss.or.kr/" \
-            "$LIST_URL" \
-            -o fine-list.html
+            -A "Mozilla/5.0" \
+            -o kind-listed.xls \
+            "$URL"
 
-                    PAGE_URL=$(grep -B 8 -A 8 "전자금융업" fine-list.html \
-            | grep -oE '/fine/bbs/B0000392/view\.do\?[^"]*nttId=[0-9]+[^"]*' \
-            | head -1 \
-            | sed 's/&amp;/\&/g')
+          echo "===== FILE INFO ====="
+          ls -lh kind-listed.xls
+          file kind-listed.xls
 
-          if [ -z "$PAGE_URL" ]; then
-            echo "ERROR: 전자금융업 게시물을 찾지 못했습니다."
+          echo "===== CONVERT TO UTF-8 ====="
+          iconv -f EUC-KR -t UTF-8 kind-listed.xls > kind-listed-utf8.html
+
+          echo "===== COMPANY CHECK ====="
+          if grep -q "삼성전자" kind-listed-utf8.html; then
+            echo "성공: 삼성전자를 찾았습니다."
+          else
+            echo "::error::삼성전자를 찾지 못했습니다."
             exit 1
           fi
 
-          if [[ "$PAGE_URL" == /* ]]; then
-            PAGE_URL="https://fine.fss.or.kr${PAGE_URL}"
-          fi
-
-          echo "Latest FINE page: $PAGE_URL"
-                    curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 90 \
-            --retry 2 \
-            --retry-delay 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Accept-Language: ko-KR,ko;q=0.9,en;q=0.8" \
-            -H "Referer: https://fine.fss.or.kr/" \
-            "$PAGE_URL" \
-            -o fine-page.html
-          python3 - <<'PY'
-          from html.parser import HTMLParser
-          import html
-
-          class Parser(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.links = []
-
-              def handle_starttag(self, tag, attrs):
-                  if tag.lower() != "a":
-                      return
-
-                  href = dict(attrs).get("href", "")
-                  href = html.unescape(href)
-
-                  if "fileDown.do" in href:
-                      self.links.append(href)
-
-          parser = Parser()
-
-          with open(
-              "fine-page.html",
-              "r",
-              encoding="utf-8",
-              errors="ignore"
-          ) as f:
-              parser.feed(f.read())
-
-          if not parser.links:
-              raise SystemExit("ERROR: 첨부파일을 찾지 못했습니다.")
-
-          url = parser.links[0]
-
-          if url.startswith("/"):
-              url = "https://fine.fss.or.kr" + url
-
-          open("download-url.txt", "w", encoding="utf-8").write(url)
-          print("Attachment:", url)
-          PY
-
-          DOWNLOAD_URL="$(cat download-url.txt)"
-
-          curl -L --fail \
-            --connect-timeout 20 \
-            --max-time 120 \
-            --retry 2 \
-            --retry-delay 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36" \
-            -H "Referer: $PAGE_URL" \
-            "$DOWNLOAD_URL" \
-            -o "전자금융업_최신.xlsx"
-
-          test -s "전자금융업_최신.xlsx"
-
-          rm -f fine-list.html fine-page.html page-url.txt download-url.txt
-
-      - name: Commit latest file
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add "전자금융업_최신.xlsx"
-
-          if git diff --cached --quiet; then
-            echo "No changes"
-          else
-            git commit -m "Update latest FINE electronic finance data"
-            git push
-          fi
+          echo "===== SAMPLE ====="
+          grep -n "삼성전자" kind-listed-utf8.html | head -3
