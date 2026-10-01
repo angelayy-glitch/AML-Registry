@@ -1301,7 +1301,22 @@ function runSearch() {
     alert('상호명을 입력하십시오.');
     return;
   }
+const kindList = window.kindListedCompanies || [];
 
+const kindMatch = kindList.find(item =>
+  String(item.name || '').replace(/\s+/g, '').toLowerCase() ===
+  String(qName || '').replace(/\s+/g, '').toLowerCase()
+);
+
+const dartListed = kindMatch ? {
+  listed: true,
+  name: kindMatch.name,
+  cells: kindMatch.cells
+} : {
+  listed: false,
+  name: qName,
+  cells: []
+};
   const now = new Date().toLocaleString('ko-KR');
   const results = SOURCES.map(src => {
     // fileKind : 목록 파일 대조 결과 (null = 파일 대조 대상 아님)
@@ -1328,7 +1343,7 @@ function runSearch() {
     return r;
   });
 
-  lastResult = { qName, qBrn, now, results };
+  lastResult = { qName, qBrn, now, results, dartListed };
   renderResult(lastResult);
 }
 
