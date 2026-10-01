@@ -1308,7 +1308,7 @@ const kindMatch = kindList.find(item =>
   String(qName || '').replace(/\s+/g, '').toLowerCase()
 );
 
-const dartListed = kindMatch ? {
+const kindListed = kindMatch ? {
   listed: true,
   name: kindMatch.name,
   cells: kindMatch.cells
@@ -1343,7 +1343,7 @@ const dartListed = kindMatch ? {
     return r;
   });
 
-  lastResult = { qName, qBrn, now, results, dartListed };
+  lastResult = { qName, qBrn, now, results, kindListed };
   renderResult(lastResult);
 }
 
