@@ -1774,7 +1774,18 @@ function renderResult(res) {
    
     html += `</div>`;
   });
-
+if (res.kindListed) {
+  html += `
+    <div class="rescard">
+      <div class="rescard-head">
+        <span class="nm">상장회사 여부</span>
+        <span class="badge ${res.kindListed.listed ? 'hit' : 'none'}">
+          ${res.kindListed.listed ? '상장회사' : '비상장/미확인'}
+        </span>
+      </div>
+    </div>
+  `;
+}
   body.innerHTML = html;
   bindWebCards();
   panel.style.display = '';
